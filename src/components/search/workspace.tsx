@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { PlaceCard } from "@/components/place/place-card";
+import { PlaceDetailSheet } from "@/components/place/place-detail-sheet";
 import { SearchBox } from "@/components/search/search-box";
 import { EmptyState, ErrorState, SkeletonGrid } from "@/components/search/states";
 import { AppShell, RegionPlaceholder } from "@/components/layout/app-shell";
@@ -10,7 +11,7 @@ import { MapPane } from "@/components/map/map-pane";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/categories";
 import { highlightStateFor, placeCardElementId } from "@/lib/highlight";
-import type { Place } from "@/lib/place";
+import type { OsmType, Place } from "@/lib/place";
 
 type Status = "loading" | "success" | "empty" | "error";
 
@@ -20,13 +21,28 @@ interface SearchPayload {
   places?: Place[];
 }
 
-export function Workspace({ initialQuery }: { initialQuery: string }) {
+export function Workspace({
+  initialQuery,
+  detail,
+}: {
+  initialQuery: string;
+  /** Present on direct loads of /place/[osmType]/[id]: open the slide-over. */
+  detail?: { osmType: OsmType; osmId: number };
+}) {
   const [status, setStatus] = useState<Status>(initialQuery ? "loading" : "success");
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState<string | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    detail ? `${detail.osmType}/${detail.osmId}` : null,
+  );
+  /** "<osmType>/<osmId>" of the open detail slide-over, if any. */
+  const [detailKey, setDetailKey] = useState<string | null>(
+    detail ? `${detail.osmType}/${detail.osmId}` : null,
+  );
+  /** True when we pushed a /place/... entry that back-navigation owns. */
+  const pushedRef = useRef(false);
   const [mobileView, setMobileView] = useState<"list" | "map">("list");
   const abortRef = useRef<AbortController | null>(null);
 
@@ -81,13 +97,50 @@ export function Workspace({ initialQuery }: { initialQuery: string }) {
     }
   }, []);
 
-  const selectPlace = useCallback((id: string) => {
-    setSelectedId((cur) => (cur === id ? null : id));
+  /** Opens the detail slide-over at its shareable /place/... URL. */
+  const openDetail = useCallback((place: Place) => {
+    setSelectedId(place.id);
+    setDetailKey(place.id);
+    if (!window.location.pathname.startsWith("/place/")) {
+      window.history.pushState(
+        null,
+        "",
+        `/place/${place.osmType}/${place.osmId}`,
+      );
+      pushedRef.current = true;
+    }
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    setDetailKey(null);
+    setSelectedId(null);
+    if (pushedRef.current) {
+      pushedRef.current = false;
+      window.history.back(); // popstate handler finishes the cleanup.
+    } else {
+      // Direct load of /place/...: return to the search view in place.
+      window.history.replaceState(null, "", `/search?q=${encodeURIComponent(query)}`);
+    }
+  }, [query]);
+
+  // Browser back/close gestures dismiss the slide-over.
+  useEffect(() => {
+    const onPop = () => {
+      pushedRef.current = false;
+      setDetailKey(null);
+      setSelectedId(null);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, []);
 
   const searching = status === "loading";
 
+  // The slide-over renders only for a well-formed detail key.
+  const detailMatch = detailKey?.match(/^(node|way|relation)\/(\d+)$/);
+
   return (
+    <>
     <AppShell
       search={
         <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4 text-center">
@@ -158,7 +211,7 @@ export function Workspace({ initialQuery }: { initialQuery: string }) {
                     onHoverEnd={() =>
                       setHoveredId((cur) => (cur === p.id ? null : cur))
                     }
-                    onSelect={() => selectPlace(p.id)}
+                    onSelect={() => openDetail(p)}
                   />
                 ))}
               </div>
@@ -180,7 +233,10 @@ export function Workspace({ initialQuery }: { initialQuery: string }) {
             hoveredId={hoveredId}
             selectedId={selectedId}
             onHover={handleMapHover}
-            onSelect={selectPlace}
+            onSelect={(id) => {
+              const place = places.find((p) => p.id === id);
+              if (place) openDetail(place);
+            }}
           />
         ) : (
           <RegionPlaceholder
@@ -192,6 +248,16 @@ export function Workspace({ initialQuery }: { initialQuery: string }) {
       }
       mobileView={mobileView}
       onMobileViewChange={setMobileView}
-    />
+      />
+      {detailMatch && (
+        <PlaceDetailSheet
+          open
+          osmType={detailMatch[1] as OsmType}
+          osmId={Number(detailMatch[2])}
+          fallbackPlace={places.find((p) => p.id === detailMatch[0]) ?? null}
+          onClose={closeDetail}
+        />
+      )}
+    </>
   );
 }

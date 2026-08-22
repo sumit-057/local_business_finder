@@ -1,11 +1,10 @@
 import { normalizeNominatimPlace } from "@/lib/place";
 import { parseSmartQuery } from "@/lib/smart-query";
+import { CACHE_CONTROL, PROVIDER_UA } from "@/server/upstream";
 import { LruCache } from "@/server/lru";
 import { acquireProviderSlot } from "@/server/rate-gate";
 
-const UA = "local_business_finder/0.1 (directory demo; contact: repo owner)";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
-const CACHE_CONTROL = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
 const cache = new LruCache<{ status: number; body: string }>(128);
 
 interface SearchPayload {
@@ -42,7 +41,7 @@ export async function GET(request: Request): Promise<Response> {
     upstream = await fetch(
       `${NOMINATIM_URL}?q=${encodeURIComponent(q)}&format=jsonv2&limit=20&addressdetails=0`,
       {
-        headers: { "User-Agent": UA, Accept: "application/json" },
+        headers: { "User-Agent": PROVIDER_UA, Accept: "application/json" },
         signal: AbortSignal.timeout(8_000),
       },
     );

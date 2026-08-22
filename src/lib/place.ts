@@ -57,3 +57,67 @@ export function normalizeNominatimPlace(hit: NominatimHit): Place {
     lon: Number(hit.lon),
   };
 }
+
+/** One element from an Overpass `out tags center` response. */
+export interface OverpassElement {
+  type?: string;
+  id?: number;
+  lat?: number;
+  lon?: number;
+  center?: { lat?: number; lon?: number };
+  tags?: Record<string, string>;
+}
+
+const CATEGORY_KEYS = ["shop", "amenity", "craft", "office", "tourism", "leisure"] as const;
+
+const ADDRESS_KEYS = [
+  "addr:housenumber",
+  "addr:street",
+  "addr:suburb",
+  "addr:city",
+  "addr:postcode",
+] as const;
+
+export function normalizeOverpassPlace(element: OverpassElement): Place {
+  const osmType = asOsmType(element.type);
+  const osmId = Number(element.id ?? 0);
+  const tags = element.tags ?? {};
+  const categoryKey = CATEGORY_KEYS.find((key) => tags[key]);
+  const addressParts = ADDRESS_KEYS.map((key) => tags[key]).filter(Boolean);
+  return {
+    id: `${osmType}/${osmId}`,
+    osmType,
+    osmId,
+    name:
+      tags.name?.trim() ||
+      tags.operator?.trim() ||
+      (categoryKey && tags[categoryKey]) ||
+      "Unnamed place",
+    category: categoryKey ? `${categoryKey}/${tags[categoryKey]}` : null,
+    address: addressParts.join(", "),
+    // Ways and relations expose their centroid under `center`.
+    lat: Number(element.lat ?? element.center?.lat),
+    lon: Number(element.lon ?? element.center?.lon),
+  };
+}
+
+/**
+ * Enrichment for one Place: only fields OSM volunteers actually tagged.
+ * Absent keys mean "not tagged" — never nulls or empty strings.
+ */
+export interface PlaceEnrichment {
+  phone?: string;
+  website?: string;
+  openingHours?: string;
+}
+
+export function extractEnrichment(tags: Record<string, string>): PlaceEnrichment {
+  const enrichment: PlaceEnrichment = {};
+  const phone = tags.phone?.trim() || tags["contact:phone"]?.trim();
+  if (phone) enrichment.phone = phone;
+  const website = tags.website?.trim() || tags["contact:website"]?.trim();
+  if (website) enrichment.website = website;
+  const openingHours = tags.opening_hours?.trim();
+  if (openingHours) enrichment.openingHours = openingHours;
+  return enrichment;
+}

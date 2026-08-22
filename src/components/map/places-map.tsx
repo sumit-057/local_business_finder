@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import type { Place } from "@/lib/place";
 import { boundsForPlaces } from "@/lib/map-bounds";
 import { highlightStateFor } from "@/lib/highlight";
+import { pinIcon } from "@/components/map/pin-icon";
 
 export interface PlacesMapProps {
   places: Place[];
@@ -18,16 +19,6 @@ export interface PlacesMapProps {
 
 /** Neutral starting viewport; the first result set immediately refits it. */
 const DEFAULT_MAP_CENTER: L.LatLngTuple = [18.5204, 73.8567];
-
-function pinIcon(state: string): L.DivIcon {
-  const modifier = state === "idle" ? "" : ` is-${state}`;
-  return L.divIcon({
-    className: "place-pin-anchor",
-    html: `<span class="place-pin${modifier}"></span>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-  });
-}
 
 /** Re-fits the viewport whenever the result set itself changes. */
 function FitToPlaces({ places }: { places: Place[] }) {
