@@ -55,8 +55,9 @@ export function AppShell({
           ))}
         </div>
         <section
+          id="results"
           aria-label="Results"
-          className="grid gap-4 lg:grid-cols-[5fr_7fr]"
+          className="grid scroll-mt-20 gap-4 lg:grid-cols-[5fr_7fr]"
         >
           <div
             className={cn("min-w-0", mobileView === "map" && "hidden lg:block")}

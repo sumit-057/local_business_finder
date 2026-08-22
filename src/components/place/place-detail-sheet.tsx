@@ -2,7 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Accessibility, Clock, Globe, Heart, Mail, Navigation, Phone, UtensilsCrossed } from "lucide-react";
+import {
+  Accessibility,
+  Armchair,
+  Bike,
+  Clock,
+  CreditCard,
+  Globe,
+  Heart,
+  Mail,
+  Navigation,
+  Phone,
+  ShoppingBag,
+  Tag,
+  UtensilsCrossed,
+  Wifi,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -124,6 +139,13 @@ export function PlaceDetailSheet({
 
   const favorites = useFavorites();
   const favorite = place ? favorites.some((p) => p.id === place.id) : false;
+  const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
+  const imgSrc =
+    enrichment?.imageUrl &&
+    /^https?:\/\//i.test(enrichment.imageUrl) &&
+    !brokenImages.has(enrichment.imageUrl)
+      ? enrichment.imageUrl
+      : null;
 
   const directionsUrl = place
     ? `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lon}`
@@ -165,6 +187,17 @@ export function PlaceDetailSheet({
 
         {status === "ready" && place && (
           <>
+            {imgSrc && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imgSrc}
+                alt={`Photo of ${place.name}`}
+                className="h-40 w-full shrink-0 border-b border-border object-cover"
+                onError={() =>
+                  setBrokenImages((prev) => new Set(prev).add(imgSrc))
+                }
+              />
+            )}
             <SheetHeader className="pb-2 pr-10">
               <div className="flex items-start gap-3">
                 <div
@@ -287,13 +320,77 @@ export function PlaceDetailSheet({
                 </p>
               )}
 
+              {enrichment?.brand && (
+                <p className="flex items-center gap-2.5 text-sm">
+                  <Tag className="size-4 shrink-0 text-primary" aria-hidden />
+                  <span className="truncate">{enrichment.brand}</span>
+                </p>
+              )}
+
+              {enrichment?.internet && (
+                <p className="flex items-center gap-2.5 text-sm">
+                  <Wifi className="size-4 shrink-0 text-primary" aria-hidden />
+                  Internet access: {enrichment.internet}
+                </p>
+              )}
+
+              {(enrichment?.hasOutdoorSeating ||
+                enrichment?.offersTakeaway ||
+                enrichment?.offersDelivery) && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {enrichment.hasOutdoorSeating && (
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full px-2 py-0 text-[11px]"
+                    >
+                      <Armchair className="mr-1 size-3" aria-hidden />
+                      Outdoor seating
+                    </Badge>
+                  )}
+                  {enrichment.offersTakeaway && (
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full px-2 py-0 text-[11px]"
+                    >
+                      <ShoppingBag className="mr-1 size-3" aria-hidden />
+                      Takeaway
+                    </Badge>
+                  )}
+                  {enrichment.offersDelivery && (
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full px-2 py-0 text-[11px]"
+                    >
+                      <Bike className="mr-1 size-3" aria-hidden />
+                      Delivery
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {enrichment?.payments && (
+                <p className="flex items-center gap-2.5 text-sm">
+                  <CreditCard
+                    className="size-4 shrink-0 text-primary"
+                    aria-hidden
+                  />
+                  Accepts {enrichment.payments.join(", ")}
+                </p>
+              )}
+
               {!(
                 enrichment?.phone ||
                 enrichment?.email ||
                 enrichment?.website ||
                 enrichment?.openingHours ||
                 enrichment?.cuisine ||
-                enrichment?.wheelchair
+                enrichment?.wheelchair ||
+                enrichment?.brand ||
+                enrichment?.internet ||
+                enrichment?.hasOutdoorSeating ||
+                enrichment?.offersTakeaway ||
+                enrichment?.offersDelivery ||
+                enrichment?.payments
               ) && (
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   No contact details have been tagged for this place yet — the

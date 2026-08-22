@@ -114,6 +114,34 @@ export interface PlaceEnrichment {
   cuisine?: string;
   /** Accessibility as tagged: "yes", "limited", or "no". */
   wheelchair?: string;
+  /** Photo URL volunteers attached via image/wikimedia tags. */
+  imageUrl?: string;
+  brand?: string;
+  /** Free wifi / internet availability as tagged. */
+  internet?: string;
+  hasOutdoorSeating?: boolean;
+  offersTakeaway?: boolean;
+  offersDelivery?: boolean;
+  /** Accepted payment methods, e.g. ["cash", "visa"]. */
+  payments?: string[];
+}
+
+const PAYMENT_LABELS: Record<string, string> = {
+  cash: "cash",
+  coins: "coins",
+  notes: "notes",
+  visa: "Visa",
+  mastercard: "Mastercard",
+  amex: "American Express",
+  debit_cards: "debit cards",
+  credit_cards: "credit cards",
+  contactless: "contactless",
+  upi: "UPI",
+  gpay: "Google Pay",
+};
+
+function pretty(value: string): string {
+  return value.trim().replace(/_/g, " ");
 }
 
 export function extractEnrichment(tags: Record<string, string>): PlaceEnrichment {
@@ -136,5 +164,20 @@ export function extractEnrichment(tags: Record<string, string>): PlaceEnrichment
   }
   const wheelchair = tags.wheelchair?.trim();
   if (wheelchair) enrichment.wheelchair = wheelchair;
+
+  const image = [tags.image, tags.wikimedia].find((v) => v?.startsWith("http"));
+  if (image) enrichment.imageUrl = image;
+  const brand = tags.brand?.trim();
+  if (brand) enrichment.brand = brand;
+  const internet = tags.internet_access?.trim();
+  if (internet && internet !== "no") enrichment.internet = pretty(internet);
+  if (tags.outdoor_seating === "yes") enrichment.hasOutdoorSeating = true;
+  if (tags.takeaway === "yes" || tags.takeaway === "only")
+    enrichment.offersTakeaway = true;
+  if (tags.delivery === "yes") enrichment.offersDelivery = true;
+  const payments = Object.entries(tags)
+    .filter(([k, v]) => k.startsWith("payment:") && v === "yes")
+    .map(([k]) => PAYMENT_LABELS[k.slice("payment:".length)] ?? pretty(k.slice(8)));
+  if (payments.length > 0) enrichment.payments = payments;
   return enrichment;
 }

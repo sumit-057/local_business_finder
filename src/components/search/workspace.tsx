@@ -19,6 +19,7 @@ import { MapPane } from "@/components/map/map-pane";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CATEGORIES, matchPlaceCategory } from "@/lib/categories";
+import { DEFAULT_QUERY } from "@/lib/categories";
 import {
   addRecentSearch,
   removeFavorite,
@@ -49,13 +50,46 @@ interface NearbyPayload {
   places?: Place[];
 }
 
+/** Device geolocation as a promise; null on denial/unavailability. */
+function getDevicePosition(): Promise<GeolocationCoordinates | null> {
+  return new Promise((resolve) => {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve(pos.coords),
+      () => resolve(null),
+      { timeout: 8_000, maximumAge: 300_000 },
+    );
+  });
+}
+
+/** Coarse server-side IP location; null when it can't be resolved. */
+async function getIpLocation(): Promise<{
+  lat: number;
+  lon: number;
+  city?: string;
+} | null> {
+  try {
+    const res = await fetch("/api/geo", { signal: AbortSignal.timeout(6_000) });
+    const body = (await res.json()) as { location?: { lat: number; lon: number; city?: string } | null };
+    return body.location ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function Workspace({
   initialQuery,
   detail,
+  preferLocation = false,
 }: {
   initialQuery: string;
   /** Present on direct loads of /place/[osmType]/[id]: open the slide-over. */
   detail?: { osmType: OsmType; osmId: number };
+  /** Landing page mode: try the visitor's location before any default query. */
+  preferLocation?: boolean;
 }) {
   const [status, setStatus] = useState<Status>(initialQuery ? "loading" : "success");
   const [query, setQuery] = useState(initialQuery);
@@ -87,17 +121,29 @@ export function Workspace({
   /** Category key filtering the current Nearby results (null = all). */
   const [nearbyFilter, setNearbyFilter] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  /** City label for IP-based Nearby results, when known. */
+  const [nearbyCity, setNearbyCity] = useState<string | null>(null);
   /** The Category a Near Me search should radius around. */
   const activeCategory =
     CATEGORIES.find((c) => category === c.label) ?? CATEGORIES.find((c) => c.key === "cafe")!;
   const abortRef = useRef<AbortController | null>(null);
 
-  const runSearch = useCallback(async (q: string) => {
-    const text = q.trim();
-    if (!text) return;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
+  /** Brings the results region into view after a fresh search lands. */
+  const scrollToResults = useCallback(() => {
+    requestAnimationFrame(() => {
+      document
+        .getElementById("results")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
+
+  const runSearch = useCallback(
+    async (q: string, opts?: { scroll?: boolean }) => {
+      const text = q.trim();
+      if (!text) return;
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
     setStatus("loading");
     setQuery(text);
@@ -128,80 +174,132 @@ export function Workspace({
       setFellBackToPlace(body.fellBackToPlace ?? null);
       addRecentSearch(text);
       setStatus((body.places?.length ?? 0) > 0 ? "success" : "empty");
+      if (opts?.scroll !== false) scrollToResults();
     } catch (e) {
       if ((e as Error).name !== "AbortError") setStatus("error");
     }
-  }, []);
-
-  useEffect(() => {
-    if (!initialQuery) return;
-    // Intentional: kick off the preloaded search once on mount; all state
-    // updates flow through the async runSearch lifecycle.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void runSearch(initialQuery);
-    return () => abortRef.current?.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  },
+  [scrollToResults]);
 
   /**
-   * Near Me: geolocation is requested only because the visitor chose
-   * this action; denial or unavailability lands in a designed fallback.
+   * Radius-searches every common Category around one position. One
+   * upstream query; the visitor filters the result set locally.
+   */
+  const runNearbyAt = useCallback(
+    async (
+      lat: number,
+      lon: number,
+      opts?: { city?: string; scroll?: boolean },
+    ) => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setStatus("loading");
+      setMode("nearby");
+      setLocating(false);
+      setHoveredId(null);
+      setSelectedId(null);
+      setFellBackToPlace(null);
+      setVisibleCount(PAGE_SIZE);
+      setQuery(opts?.city ? `near ${opts.city}` : "near you");
+      setNearbyCity(opts?.city ?? null);
+      try {
+        const res = await fetch(
+          `/api/nearby?lat=${lat}&lon=${lon}&category=all`,
+          { signal: controller.signal },
+        );
+        if (!res.ok) {
+          setStatus("error");
+          return;
+        }
+        const body = (await res.json()) as NearbyPayload;
+        setPlaces(body.places ?? []);
+        setCategory(body.category);
+        setNearby(true);
+        setNearbyFilter(
+          (body.places ?? []).some(
+            (p) => matchPlaceCategory(p.category)?.key === activeCategory.key,
+          )
+            ? activeCategory.key
+            : null,
+        );
+        setStatus((body.places?.length ?? 0) > 0 ? "success" : "empty");
+        if (opts?.scroll !== false) scrollToResults();
+      } catch (e) {
+        if ((e as Error).name !== "AbortError") setStatus("error");
+      }
+    },
+    [activeCategory, scrollToResults],
+  );
+
+  /**
+   * Near Me button: device GPS first, coarse IP location second, and a
+   * designed fallback only when both fail — never a dead end.
    */
   const runNearby = useCallback(() => {
-    if (!("geolocation" in navigator)) {
-      setGeoDenied(true);
-      return;
-    }
     abortRef.current?.abort();
     setGeoDenied(false);
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
+    getDevicePosition().then((coords) => {
+      if (coords) {
+        void runNearbyAt(coords.latitude, coords.longitude, {
+          scroll: true,
+        });
+        return;
+      }
+      getIpLocation().then((ip) => {
         setLocating(false);
-        void (async () => {
-          const controller = new AbortController();
-          abortRef.current = controller;
-          setStatus("loading");
-          setMode("nearby");
-          setHoveredId(null);
-          setSelectedId(null);
-          setFellBackToPlace(null);
-          setVisibleCount(PAGE_SIZE);
-          try {
-            // One radius query unions every common Category; the visitor
-            // filters the result set locally without re-prompting GPS.
-            const res = await fetch(
-              `/api/nearby?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&category=all`,
-              { signal: controller.signal },
-            );
-            if (!res.ok) {
-              setStatus("error");
-              return;
-            }
-            const body = (await res.json()) as NearbyPayload;
-            setPlaces(body.places ?? []);
-            setCategory(body.category);
-            setNearby(true);
-            setNearbyFilter(
-              (body.places ?? []).some(
-                (p) => matchPlaceCategory(p.category)?.key === activeCategory.key,
-              )
-                ? activeCategory.key
-                : null,
-            );
-            setStatus((body.places?.length ?? 0) > 0 ? "success" : "empty");
-          } catch (e) {
-            if ((e as Error).name !== "AbortError") setStatus("error");
-          }
-        })();
-      },
-      () => {
-        setLocating(false);
-        setGeoDenied(true);
-      },
-      { timeout: 10_000, maximumAge: 300_000 },
-    );
-  }, [activeCategory]);
+        if (ip) {
+          void runNearbyAt(ip.lat, ip.lon, {
+            city: ip.city || undefined,
+            scroll: true,
+          });
+        } else {
+          setGeoDenied(true);
+        }
+      });
+    });
+  }, [runNearbyAt]);
+
+  // Mount-only bootstrap: shareable query, or location-first landing.
+  useEffect(() => {
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      if (initialQuery) {
+        // Shareable /search?q=... loads: run the query, stay at the top.
+        await runSearch(initialQuery, { scroll: false });
+        return;
+      }
+      if (!preferLocation) return;
+      // Landing page: try the visitor's location first, Pune only as a
+      // last resort. Device GPS → coarse IP location → default query.
+      setStatus("loading");
+      const coords = await getDevicePosition();
+      if (cancelled) return;
+      if (coords) {
+        await runNearbyAt(coords.latitude, coords.longitude, {
+          scroll: false,
+        });
+        return;
+      }
+      const ip = await getIpLocation();
+      if (cancelled) return;
+      if (ip) {
+        await runNearbyAt(ip.lat, ip.lon, { city: ip.city, scroll: false });
+        return;
+      }
+      await runSearch(DEFAULT_QUERY, { scroll: false });
+    };
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+      abortRef.current?.abort();
+    };
+    // Intentional mount-only bootstrap; all updates flow through the
+    // async lifecycle functions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Hover raised from a pin: mirror onto the card and bring it into view. */
   const handleMapHover = useCallback((id: string | null) => {
@@ -435,7 +533,7 @@ export function Workspace({
                     ? "Searching around you…"
                     : `Searching "${query}"…`
                   : nearby
-                    ? `${filteredPlaces.length} place${filteredPlaces.length === 1 ? "" : "s"} near you`
+                    ? `${filteredPlaces.length} place${filteredPlaces.length === 1 ? "" : "s"} near you${nearbyCity ? ` · ${nearbyCity}` : ""}`
                     : `${places.length} place${places.length === 1 ? "" : "s"} for "${query}"`}
               </span>
               {category && status === "success" && (
