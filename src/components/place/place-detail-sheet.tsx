@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Clock, Globe, Navigation, Phone } from "lucide-react";
+import { Clock, Globe, Heart, Navigation, Phone } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { OsmType, Place, PlaceEnrichment } from "@/lib/place";
+import { toggleFavorite, useFavorites } from "@/lib/local-store";
+import { cn } from "@/lib/utils";
 
 const PlaceMiniMap = dynamic(() => import("@/components/map/place-mini-map"), {
   ssr: false,
@@ -113,6 +115,9 @@ export function PlaceDetailSheet({
   const enrichment =
     entry?.status === "ready" && entry.payload ? entry.payload.enrichment : null;
 
+  const favorites = useFavorites();
+  const favorite = place ? favorites.some((p) => p.id === place.id) : false;
+
   const directionsUrl = place
     ? `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lon}`
     : null;
@@ -153,10 +158,31 @@ export function PlaceDetailSheet({
 
         {status === "ready" && place && (
           <>
-            <SheetHeader className="pb-2">
-              <SheetTitle className="text-lg font-semibold tracking-tight">
-                {place.name}
-              </SheetTitle>
+            <SheetHeader className="pb-2 pr-10">
+              <div className="flex items-start justify-between gap-2">
+                <SheetTitle className="text-lg font-semibold tracking-tight">
+                  {place.name}
+                </SheetTitle>
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(place)}
+                  aria-pressed={favorite}
+                  aria-label={
+                    favorite
+                      ? `Remove ${place.name} from favorites`
+                      : `Save ${place.name} to favorites`
+                  }
+                  className="shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Heart
+                    className={cn(
+                      "size-5 transition-transform hover:scale-110",
+                      favorite && "fill-primary text-primary",
+                    )}
+                    aria-hidden
+                  />
+                </button>
+              </div>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 {place.category && (
                   <Badge

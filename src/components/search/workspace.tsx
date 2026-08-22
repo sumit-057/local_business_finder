@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { LocateFixed } from "lucide-react";
+import { Heart, LocateFixed, X } from "lucide-react";
 import { PlaceCard } from "@/components/place/place-card";
 import { PlaceDetailSheet } from "@/components/place/place-detail-sheet";
 import { SearchBox } from "@/components/search/search-box";
@@ -17,6 +17,13 @@ import { MapPane } from "@/components/map/map-pane";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CATEGORIES } from "@/lib/categories";
+import {
+  addRecentSearch,
+  removeFavorite,
+  toggleFavorite,
+  useFavorites,
+  useRecentSearches,
+} from "@/lib/local-store";
 import { highlightStateFor, placeCardElementId } from "@/lib/highlight";
 import type { OsmType, Place } from "@/lib/place";
 
@@ -57,6 +64,8 @@ export function Workspace({
   /** True when we pushed a /place/... entry that back-navigation owns. */
   const pushedRef = useRef(false);
   const [mobileView, setMobileView] = useState<"list" | "map">("list");
+  const favorites = useFavorites();
+  const recentSearches = useRecentSearches();
   /** True when the current results came from a Near Me radius search. */
   const [nearby, setNearby] = useState(false);
   /** Which flow an error-state retry should re-run. */
@@ -95,6 +104,7 @@ export function Workspace({
       }
       setPlaces(body.places ?? []);
       setCategory(body.category);
+      addRecentSearch(text);
       setStatus((body.places?.length ?? 0) > 0 ? "success" : "empty");
     } catch (e) {
       if ((e as Error).name !== "AbortError") setStatus("error");
@@ -262,10 +272,72 @@ export function Workspace({
             />
             {locating ? "Locating…" : "Near Me"}
           </Button>
+          {recentSearches.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.25 }}
+              className="flex flex-wrap items-center justify-center gap-1.5"
+              aria-label="Recent searches"
+            >
+              {recentSearches.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => void runSearch(q)}
+                  className="rounded-full px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  ⏎ {q}
+                </button>
+              ))}
+            </motion.div>
+          )}
         </div>
       }
       results={
         <>
+          {favorites.length > 0 && (
+            <div className="mb-4">
+              <p className="mb-2 flex items-center gap-1.5 px-1 text-xs font-medium text-muted-foreground">
+                <Heart className="size-3.5 fill-primary text-primary" aria-hidden />
+                Favorites
+              </p>
+              <div
+                className="flex snap-x gap-2 overflow-x-auto pb-1"
+                role="list"
+                aria-label="Saved places"
+              >
+                {favorites.map((f) => (
+                  <div
+                    key={f.id}
+                    role="listitem"
+                    tabIndex={0}
+                    onClick={() => openDetail(f)}
+                    onKeyDown={(e) => e.key === "Enter" && openDetail(f)}
+                    aria-label={`Open ${f.name}`}
+                    className="surface-glass group relative w-52 shrink-0 cursor-pointer snap-start rounded-xl p-3 pr-7 transition-colors hover:border-primary/40 focus-visible:border-ring"
+                  >
+                    <span className="block truncate text-xs font-semibold">
+                      {f.name}
+                    </span>
+                    <span className="block truncate text-[11px] text-muted-foreground">
+                      {f.address || f.category || f.id}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFavorite(f.id);
+                      }}
+                      aria-label={`Remove ${f.name} from favorites`}
+                      className="absolute top-1.5 right-1.5 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
+                    >
+                      <X className="size-3" aria-hidden />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {geoDenied && !searching && (
             <LocationDeniedState onExample={(q) => void runSearch(q)} />
           )}
@@ -312,11 +384,13 @@ export function Workspace({
                     place={p}
                     index={i}
                     state={highlightStateFor(p.id, hoveredId, selectedId)}
+                    favorite={favorites.some((f) => f.id === p.id)}
                     onHoverStart={() => setHoveredId(p.id)}
                     onHoverEnd={() =>
                       setHoveredId((cur) => (cur === p.id ? null : cur))
                     }
                     onSelect={() => openDetail(p)}
+                    onToggleFavorite={() => toggleFavorite(p)}
                   />
                 ))}
               </div>

@@ -1,9 +1,10 @@
-import { MapPin } from "lucide-react";
+import { Heart, MapPin } from "lucide-react";
 import { motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import type { Place } from "@/lib/place";
 import { placeCardElementId } from "@/lib/highlight";
 import type { HighlightState } from "@/lib/highlight";
+import { cn } from "@/lib/utils";
 
 function prettyCategory(category: string | null): string {
   if (!category) return "Place";
@@ -21,16 +22,20 @@ export function PlaceCard({
   place,
   index,
   state = "idle",
+  favorite = false,
   onHoverStart,
   onHoverEnd,
   onSelect,
+  onToggleFavorite,
 }: {
   place: Place;
   index: number;
   state?: HighlightState;
+  favorite?: boolean;
   onHoverStart?: () => void;
   onHoverEnd?: () => void;
   onSelect?: () => void;
+  onToggleFavorite?: () => void;
 }) {
   return (
     <motion.article
@@ -38,7 +43,7 @@ export function PlaceCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.4) }}
-      className={`surface-glass group cursor-pointer rounded-2xl p-4 transition-colors hover:border-primary/40 ${STATE_STYLES[state]}`}
+      className={`surface-glass group cursor-pointer rounded-2xl p-4 transition-colors hover:border-primary/40 focus-visible:border-ring ${STATE_STYLES[state]}`}
       tabIndex={0}
       aria-label={place.name}
       aria-current={state === "selected" || undefined}
@@ -66,6 +71,26 @@ export function PlaceCard({
             {place.address}
           </p>
         </div>
+        {onToggleFavorite && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite();
+            }}
+            aria-pressed={favorite}
+            aria-label={favorite ? `Remove ${place.name} from favorites` : `Save ${place.name} to favorites`}
+            className="ml-auto shrink-0 self-start rounded-full p-1.5 text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Heart
+              className={cn(
+                "size-4 transition-transform hover:scale-110",
+                favorite && "fill-primary text-primary",
+              )}
+              aria-hidden
+            />
+          </button>
+        )}
       </div>
     </motion.article>
   );
