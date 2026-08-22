@@ -26,6 +26,8 @@ function storage(): Storage | null {
 /** Test/SSR seam: pin the store to a specific storage backend. */
 export function setStorageForTests(s: Storage | null): void {
   storageOverride = s;
+  favoritesCache = null;
+  recentsCache = null;
 }
 
 function read<T>(key: string): T[] {
@@ -47,13 +49,21 @@ function write(key: string, value: unknown[]): void {
 }
 
 function emit(): void {
+  // Invalidate cached snapshots so the next read picks up the write;
+  // between writes the references stay stable (required by
+  // useSyncExternalStore).
+  favoritesCache = null;
+  recentsCache = null;
   for (const listener of listeners) listener();
 }
 
 /* ── Favorites ────────────────────────────────────────────────────────── */
 
+let favoritesCache: Place[] | null = null;
+
 export function getFavorites(): Place[] {
-  return read<Place>(FAVORITES_KEY);
+  favoritesCache ??= read<Place>(FAVORITES_KEY);
+  return favoritesCache;
 }
 
 export function isFavorite(id: string): boolean {
@@ -79,8 +89,11 @@ export function removeFavorite(id: string): void {
 
 /* ── Recent searches ──────────────────────────────────────────────────── */
 
+let recentsCache: string[] | null = null;
+
 export function getRecentSearches(): string[] {
-  return read<string>(RECENTS_KEY);
+  recentsCache ??= read<string>(RECENTS_KEY);
+  return recentsCache;
 }
 
 export function addRecentSearch(query: string): void {
