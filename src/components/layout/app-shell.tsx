@@ -1,19 +1,30 @@
-import { MapPin, Search } from "lucide-react";
+import { List, Map as MapIcon, MapPin, Search } from "lucide-react";
 import { BrandBar } from "@/components/layout/brand-bar";
+import { cn } from "@/lib/utils";
 
 /**
  * App-first shell: brand bar, search region, then the split
- * results/map workspace. Regions are slots — tickets fill them in.
+ * results/map workspace. Desktop is always a split view; below `lg`
+ * a segmented toggle switches full-screen panes.
  */
 export function AppShell({
   search,
   results,
   map,
+  mobileView = "list",
+  onMobileViewChange,
 }: {
   search: React.ReactNode;
   results: React.ReactNode;
   map: React.ReactNode;
+  mobileView?: "list" | "map";
+  onMobileViewChange?: (view: "list" | "map") => void;
 }) {
+  const panes: Array<{ key: "list" | "map"; label: string; icon: typeof List }> = [
+    { key: "list", label: "List", icon: List },
+    { key: "map", label: "Map", icon: MapIcon },
+  ];
+
   return (
     <div className="app-backdrop flex min-h-svh flex-col">
       <BrandBar />
@@ -21,12 +32,42 @@ export function AppShell({
         <section aria-label="Search" className="pt-14 pb-10 sm:pt-20">
           {search}
         </section>
+        <div
+          className="surface-glass mb-4 inline-flex gap-1 rounded-full p-1 lg:hidden"
+          role="group"
+          aria-label="Switch between list and map"
+        >
+          {panes.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              aria-pressed={mobileView === key}
+              onClick={() => onMobileViewChange?.(key)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium transition-colors",
+                mobileView === key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="size-3.5" aria-hidden />
+              {label}
+            </button>
+          ))}
+        </div>
         <section
           aria-label="Results"
           className="grid gap-4 lg:grid-cols-[5fr_7fr]"
         >
-          <div className="min-w-0">{results}</div>
-          <div className="min-w-0">{map}</div>
+          <div
+            className={cn("min-w-0", mobileView === "map" && "hidden lg:block")}
+          >
+            {results}
+          </div>
+          <div
+            className={cn("min-w-0", mobileView === "list" && "hidden lg:block")}
+          >
+            {map}
+          </div>
         </section>
       </div>
     </div>

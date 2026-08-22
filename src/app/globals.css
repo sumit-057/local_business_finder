@@ -156,3 +156,62 @@
   backdrop-filter: blur(14px) saturate(1.35);
   border: 1px solid var(--border);
 }
+
+/* ── Live map (Leaflet on free OSM raster tiles) ──────────────────────── */
+
+.leaflet-container {
+  background: var(--background);
+  font-family: inherit;
+}
+
+/* Tint the light OSM raster toward the dark-premium palette. */
+.map-tiles {
+  filter: invert(1) hue-rotate(185deg) brightness(0.92) contrast(0.92)
+    saturate(0.65);
+}
+
+.leaflet-control-attribution {
+  background: color-mix(in oklab, var(--background) 72%, transparent) !important;
+  color: var(--muted-foreground) !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a {
+  color: var(--muted-foreground) !important;
+}
+
+.place-pin-anchor {
+  background: none;
+  border: none;
+}
+
+.place-pin {
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 2px;
+  border-radius: 9999px;
+  background: var(--primary);
+  border: 2px solid color-mix(in oklab, var(--background) 70%, white);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--primary) 28%, transparent),
+    0 2px 8px rgb(0 0 0 / 45%);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.place-pin.is-hovered {
+  transform: scale(1.35);
+  box-shadow:
+    0 0 0 7px color-mix(in oklab, var(--primary) 26%, transparent),
+    0 2px 10px rgb(0 0 0 / 50%);
+}
+
+.place-pin.is-selected {
+  transform: scale(1.5);
+  background: var(--mark-from);
+  box-shadow:
+    0 0 0 8px color-mix(in oklab, var(--mark-from) 30%, transparent),
+    0 3px 12px rgb(0 0 0 / 55%);
+}
