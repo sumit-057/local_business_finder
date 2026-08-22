@@ -96,3 +96,38 @@ export function ErrorState({ onRetry }: { onRetry: () => void }) {
     </motion.div>
   );
 }
+
+/** Graceful fallback when geolocation is denied or unavailable. */
+export function LocationDeniedState({
+  onExample,
+}: {
+  onExample: (q: string) => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="surface-glass mb-4 flex flex-col items-center gap-3 rounded-2xl p-8 text-center"
+    >
+      <MapPinOff className="size-8 text-muted-foreground/80" aria-hidden />
+      <p className="text-sm font-medium">We couldn&apos;t get your location</p>
+      <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
+        Your browser blocked location access or couldn&apos;t find you. You can
+        still ask directly:
+      </p>
+      <div className="flex flex-wrap justify-center gap-2 pt-1">
+        {["salon in Pune", "gyms in Austin", "cafés in Berlin"].map((q) => (
+          <Button
+            key={q}
+            variant="secondary"
+            size="sm"
+            className="rounded-full"
+            onClick={() => onExample(q)}
+          >
+            {q}
+          </Button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}

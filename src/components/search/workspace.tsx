@@ -2,13 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
+import { LocateFixed } from "lucide-react";
 import { PlaceCard } from "@/components/place/place-card";
 import { PlaceDetailSheet } from "@/components/place/place-detail-sheet";
 import { SearchBox } from "@/components/search/search-box";
-import { EmptyState, ErrorState, SkeletonGrid } from "@/components/search/states";
+import {
+  EmptyState,
+  ErrorState,
+  LocationDeniedState,
+  SkeletonGrid,
+} from "@/components/search/states";
 import { AppShell, RegionPlaceholder } from "@/components/layout/app-shell";
 import { MapPane } from "@/components/map/map-pane";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CATEGORIES } from "@/lib/categories";
 import { highlightStateFor, placeCardElementId } from "@/lib/highlight";
 import type { OsmType, Place } from "@/lib/place";
@@ -18,6 +25,12 @@ type Status = "loading" | "success" | "empty" | "error";
 interface SearchPayload {
   query: string;
   category: string | null;
+  places?: Place[];
+}
+
+interface NearbyPayload {
+  category: string;
+  origin: { lat: number; lon: number };
   places?: Place[];
 }
 
@@ -44,6 +57,15 @@ export function Workspace({
   /** True when we pushed a /place/... entry that back-navigation owns. */
   const pushedRef = useRef(false);
   const [mobileView, setMobileView] = useState<"list" | "map">("list");
+  /** True when the current results came from a Near Me radius search. */
+  const [nearby, setNearby] = useState(false);
+  /** Which flow an error-state retry should re-run. */
+  const [mode, setMode] = useState<"search" | "nearby">("search");
+  const [locating, setLocating] = useState(false);
+  const [geoDenied, setGeoDenied] = useState(false);
+  /** The Category a Near Me search should radius around. */
+  const activeCategory =
+    CATEGORIES.find((c) => category === c.label) ?? CATEGORIES.find((c) => c.key === "cafe")!;
   const abortRef = useRef<AbortController | null>(null);
 
   const runSearch = useCallback(async (q: string) => {
@@ -58,6 +80,8 @@ export function Workspace({
     setCategory(null);
     setHoveredId(null);
     setSelectedId(null);
+    setNearby(false);
+    setMode("search");
     window.history.replaceState(null, "", `/search?q=${encodeURIComponent(text)}`);
 
     try {
@@ -86,6 +110,55 @@ export function Workspace({
     return () => abortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * Near Me: geolocation is requested only because the visitor chose
+   * this action; denial or unavailability lands in a designed fallback.
+   */
+  const runNearby = useCallback(() => {
+    if (!("geolocation" in navigator)) {
+      setGeoDenied(true);
+      return;
+    }
+    abortRef.current?.abort();
+    setGeoDenied(false);
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        void (async () => {
+          const controller = new AbortController();
+          abortRef.current = controller;
+          setStatus("loading");
+          setMode("nearby");
+          setHoveredId(null);
+          setSelectedId(null);
+          try {
+            const res = await fetch(
+              `/api/nearby?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&category=${activeCategory.key}`,
+              { signal: controller.signal },
+            );
+            if (!res.ok) {
+              setStatus("error");
+              return;
+            }
+            const body = (await res.json()) as NearbyPayload;
+            setPlaces(body.places ?? []);
+            setCategory(body.category);
+            setNearby(true);
+            setStatus((body.places?.length ?? 0) > 0 ? "success" : "empty");
+          } catch (e) {
+            if ((e as Error).name !== "AbortError") setStatus("error");
+          }
+        })();
+      },
+      () => {
+        setLocating(false);
+        setGeoDenied(true);
+      },
+      { timeout: 10_000, maximumAge: 300_000 },
+    );
+  }, [activeCategory]);
 
   /** Hover raised from a pin: mirror onto the card and bring it into view. */
   const handleMapHover = useCallback((id: string | null) => {
@@ -161,7 +234,7 @@ export function Workspace({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
-            className="flex flex-wrap justify-center gap-2"
+            className="flex flex-wrap items-center justify-center gap-2"
             aria-label="Category shortcuts"
           >
             {CATEGORIES.map((c) => (
@@ -175,16 +248,37 @@ export function Workspace({
               </button>
             ))}
           </motion.div>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="rounded-full"
+            onClick={runNearby}
+            disabled={searching || locating}
+            title={`Find ${activeCategory.label.toLowerCase()}s around your position`}
+          >
+            <LocateFixed
+              className={`size-3.5${locating ? " animate-spin" : ""}`}
+              aria-hidden
+            />
+            {locating ? "Locating…" : "Near Me"}
+          </Button>
         </div>
       }
       results={
         <>
+          {geoDenied && !searching && (
+            <LocationDeniedState onExample={(q) => void runSearch(q)} />
+          )}
           {query && (
             <p className="mb-3 flex items-center gap-2 px-1 text-xs text-muted-foreground" aria-live="polite">
               <span>
                 {status === "loading"
-                  ? `Searching "${query}"…`
-                  : `${places.length} place${places.length === 1 ? "" : "s"} for "${query}"`}
+                  ? nearby
+                    ? `Searching ${category ?? "places"} near you…`
+                    : `Searching "${query}"…`
+                  : nearby
+                    ? `${places.length} place${places.length === 1 ? "" : "s"} near you`
+                    : `${places.length} place${places.length === 1 ? "" : "s"} for "${query}"`}
               </span>
               {category && status === "success" && (
                 <Badge className="rounded-full bg-accent px-2 py-0 text-[11px] text-primary">
@@ -195,9 +289,20 @@ export function Workspace({
           )}
           {status === "loading" && <SkeletonGrid />}
           {status === "empty" && (
-            <EmptyState query={query} onExample={(q) => void runSearch(q)} />
+            <EmptyState
+              query={
+                nearby && category ? `${category.toLowerCase()} near you` : query
+              }
+              onExample={(q) => void runSearch(q)}
+            />
           )}
-          {status === "error" && <ErrorState onRetry={() => void runSearch(query)} />}
+          {status === "error" && (
+            <ErrorState
+              onRetry={() =>
+                mode === "nearby" ? runNearby() : void runSearch(query)
+              }
+            />
+          )}
           {status === "success" &&
             (places.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
