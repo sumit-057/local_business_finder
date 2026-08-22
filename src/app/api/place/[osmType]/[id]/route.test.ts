@@ -16,6 +16,8 @@ const richNodeFixture = {
         phone: "+91 20 2729 0000",
         website: "https://lakme.example.com",
         opening_hours: "Mo-Sa 10:00-20:00",
+        email: "hello@lakme.example.com",
+        wheelchair: "yes",
         "addr:housenumber": "12",
         "addr:street": "Nagras Road",
         "addr:city": "Pune",
@@ -89,6 +91,30 @@ describe("GET /api/place/[osmType]/[id]", () => {
     expect(body.enrichment.phone).toBe("+91 20 2729 0000");
     expect(body.enrichment.website).toBe("https://lakme.example.com");
     expect(body.enrichment.openingHours).toBe("Mo-Sa 10:00-20:00");
+    expect(body.enrichment.email).toBe("hello@lakme.example.com");
+    expect(body.enrichment.wheelchair).toBe("yes");
+  });
+
+  it("prettifies multi-value cuisine tags", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          version: 0.6,
+          elements: [
+            {
+              type: "node",
+              id: 42,
+              lat: 1,
+              lon: 2,
+              tags: { amenity: "restaurant", cuisine: "pizza;pasta;regional" },
+            },
+          ],
+        }),
+      ),
+    );
+    const body = await (await get("node", "42")).json();
+    expect(body.enrichment.cuisine).toBe("pizza, pasta, regional");
   });
 
   it("omits untagged enrichment fields instead of returning nulls", async () => {
@@ -148,7 +174,8 @@ describe("GET /api/place/[osmType]/[id]", () => {
       "fetch",
       vi.fn(async () => jsonResponse({ error: "boom" }, 502)),
     );
-    const res = await get("node", "42");
+    // Unique id so earlier tests' cache entries don't interfere.
+    const res = await get("node", "424242");
     expect(res.status).toBe(502);
     expect((await res.json()).error.code).toBe("upstream_error");
   });

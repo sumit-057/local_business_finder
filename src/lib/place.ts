@@ -107,17 +107,34 @@ export function normalizeOverpassPlace(element: OverpassElement): Place {
  */
 export interface PlaceEnrichment {
   phone?: string;
+  email?: string;
   website?: string;
   openingHours?: string;
+  /** What they serve, e.g. "pizza" or "italian". */
+  cuisine?: string;
+  /** Accessibility as tagged: "yes", "limited", or "no". */
+  wheelchair?: string;
 }
 
 export function extractEnrichment(tags: Record<string, string>): PlaceEnrichment {
   const enrichment: PlaceEnrichment = {};
   const phone = tags.phone?.trim() || tags["contact:phone"]?.trim();
   if (phone) enrichment.phone = phone;
+  const email = tags.email?.trim() || tags["contact:email"]?.trim();
+  if (email) enrichment.email = email;
   const website = tags.website?.trim() || tags["contact:website"]?.trim();
   if (website) enrichment.website = website;
   const openingHours = tags.opening_hours?.trim();
   if (openingHours) enrichment.openingHours = openingHours;
+  const cuisine = tags.cuisine?.trim();
+  if (cuisine) {
+    // Multi-value cuisines are semicolon-separated in OSM.
+    enrichment.cuisine = cuisine
+      .split(";")
+      .map((c) => c.trim().replace(/_/g, " "))
+      .join(", ");
+  }
+  const wheelchair = tags.wheelchair?.trim();
+  if (wheelchair) enrichment.wheelchair = wheelchair;
   return enrichment;
 }

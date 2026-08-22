@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Clock, Globe, Heart, Navigation, Phone } from "lucide-react";
+import { Accessibility, Clock, Globe, Heart, Mail, Navigation, Phone, UtensilsCrossed } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -46,6 +46,12 @@ function formatCoords(lat: number, lon: number): string {
   const ew = lon >= 0 ? "E" : "W";
   return `${Math.abs(lat).toFixed(5)}° ${ns}, ${Math.abs(lon).toFixed(5)}° ${ew}`;
 }
+
+const WHEELCHAIR_LABELS: Record<string, string> = {
+  yes: "accessible",
+  limited: "partially accessible",
+  no: "not accessible",
+};
 
 /**
  * The detail slide-over: full-screen sheet on mobile, side panel over
@@ -237,6 +243,16 @@ export function PlaceDetailSheet({
                 </a>
               )}
 
+              {enrichment?.email && (
+                <a
+                  href={`mailto:${enrichment.email}`}
+                  className="flex min-w-0 items-center gap-2.5 text-sm transition-colors hover:text-primary"
+                >
+                  <Mail className="size-4 shrink-0 text-primary" aria-hidden />
+                  <span className="truncate">{enrichment.email}</span>
+                </a>
+              )}
+
               {enrichment?.website && (
                 <a
                   href={enrichment.website}
@@ -249,7 +265,36 @@ export function PlaceDetailSheet({
                 </a>
               )}
 
-              {!enrichment?.phone && !enrichment?.website && !enrichment?.openingHours && (
+              {enrichment?.cuisine && (
+                <p className="flex items-center gap-2.5 text-sm">
+                  <UtensilsCrossed
+                    className="size-4 shrink-0 text-primary"
+                    aria-hidden
+                  />
+                  {enrichment.cuisine}
+                </p>
+              )}
+
+              {enrichment?.wheelchair && (
+                <p className="flex items-center gap-2.5 text-sm">
+                  <Accessibility
+                    className="size-4 shrink-0 text-primary"
+                    aria-hidden
+                  />
+                  Wheelchair{" "}
+                  {WHEELCHAIR_LABELS[enrichment.wheelchair] ??
+                    enrichment.wheelchair.toLowerCase()}
+                </p>
+              )}
+
+              {!(
+                enrichment?.phone ||
+                enrichment?.email ||
+                enrichment?.website ||
+                enrichment?.openingHours ||
+                enrichment?.cuisine ||
+                enrichment?.wheelchair
+              ) && (
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   No contact details have been tagged for this place yet — the
                   map data is volunteer-maintained.
@@ -262,6 +307,7 @@ export function PlaceDetailSheet({
                 {directionsUrl && (
                   <Button
                     size="sm"
+                    nativeButton={false}
                     render={
                       <a href={directionsUrl} target="_blank" rel="noopener noreferrer" />
                     }
@@ -273,6 +319,7 @@ export function PlaceDetailSheet({
                 <Button
                   variant="secondary"
                   size="sm"
+                  nativeButton={false}
                   render={<a href={osmUrl} target="_blank" rel="noopener noreferrer" />}
                 >
                   View on OpenStreetMap
