@@ -1,0 +1,3 @@
+Smart Query search end-to-end: /api/search seam, Place cards, designed states
+
+Ticket #3

@@ -1,0 +1,50 @@
+[
+  {
+    "place_id": 128945610,
+    "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+    "osm_type": "node",
+    "osm_id": 5013924587,
+    "lat": "18.5620603",
+    "lon": "73.8055756",
+    "category": "shop",
+    "type": "hairdresser",
+    "place_rank": 30,
+    "importance": 0.32,
+    "addresstype": "amenity",
+    "name": "Lakmé Salon",
+    "display_name": "Lakmé Salon, Nagras Road, Aundh, Pune, Pune City Subdistrict, Pune, Maharashtra, 411007, India",
+    "boundingbox": ["18.5620103", "18.5621103", "73.8055256", "73.8056256"]
+  },
+  {
+    "place_id": 129034477,
+    "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+    "osm_type": "node",
+    "osm_id": 5044118721,
+    "lat": "18.5642301",
+    "lon": "73.7798415",
+    "category": "shop",
+    "type": "hairdresser",
+    "place_rank": 30,
+    "importance": 0.28,
+    "addresstype": "amenity",
+    "name": "Kapil's Salon & Academy",
+    "display_name": "Kapil's Salon & Academy, Balewadi High Street, Baner, Pune, Pune City Subdistrict, Pune, Maharashtra, 411001, India",
+    "boundingbox": ["18.5641801", "18.5642801", "73.7797915", "73.7798915"]
+  },
+  {
+    "place_id": 98211234,
+    "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+    "osm_type": "way",
+    "osm_id": 77123456,
+    "lat": "18.5204300",
+    "lon": "73.8567200",
+    "category": "shop",
+    "type": "beauty",
+    "place_rank": 30,
+    "importance": 0.21,
+    "addresstype": "amenity",
+    "name": "",
+    "display_name": "Shop 4, Lane 7, Kalyani Nagar, Pune, Maharashtra, 411006, India",
+    "boundingbox": ["18.5203800", "18.5204800", "73.8566700", "73.8567700"]
+  }
+]
