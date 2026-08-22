@@ -1,0 +1,158 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * Dark-premium palette: deep indigo-black surfaces, near-white text,
+ * a single restrained violet accent. Dark-first product; the same
+ * values live in both scopes so no light mode exists yet.
+ */
+:root {
+  --background: oklch(0.145 0.014 276);
+  --foreground: oklch(0.96 0.005 280);
+  --card: oklch(0.185 0.018 276);
+  --card-foreground: oklch(0.96 0.005 280);
+  --popover: oklch(0.17 0.016 276);
+  --popover-foreground: oklch(0.96 0.005 280);
+  --primary: oklch(0.66 0.185 288);
+  --primary-foreground: oklch(0.98 0.004 288);
+  --secondary: oklch(0.24 0.022 276);
+  --secondary-foreground: oklch(0.93 0.008 280);
+  --muted: oklch(0.225 0.016 276);
+  --muted-foreground: oklch(0.68 0.018 280);
+  --accent: oklch(0.26 0.03 286);
+  --accent-foreground: oklch(0.95 0.01 285);
+  --destructive: oklch(0.66 0.2 22);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.66 0.185 288 / 55%);
+  --chart-1: oklch(0.66 0.185 288);
+  --chart-2: oklch(0.72 0.13 200);
+  --chart-3: oklch(0.75 0.15 85);
+  --chart-4: oklch(0.62 0.16 330);
+  --chart-5: oklch(0.7 0.14 160);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.165 0.016 276);
+  --sidebar-foreground: oklch(0.96 0.005 280);
+  --sidebar-primary: oklch(0.66 0.185 288);
+  --sidebar-primary-foreground: oklch(0.98 0.004 288);
+  --sidebar-accent: oklch(0.26 0.03 286);
+  --sidebar-accent-foreground: oklch(0.95 0.01 285);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: oklch(0.66 0.185 288 / 55%);
+
+  /* Backdrop glow tones (raw, not semantic) */
+  --glow-violet: oklch(0.52 0.21 292 / 22%);
+  --glow-indigo: oklch(0.45 0.19 268 / 18%);
+  --glow-cyan: oklch(0.62 0.12 210 / 10%);
+
+  /* Logomark gradient stops — single accent hue, two tones */
+  --mark-from: oklch(0.72 0.16 300);
+  --mark-to: oklch(0.6 0.19 288);
+}
+
+.dark {
+  /* Dark-only product: :root already carries the full dark palette.
+     Scope exists so shadcn's `dark:` variant resolves if ever needed. */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    letter-spacing: -0.011em;
+  }
+  html {
+    @apply font-sans;
+    color-scheme: dark;
+  }
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+}
+
+/* ── App backdrop: gradient mesh + film grain ─────────────────────────── */
+
+.app-backdrop {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-backdrop::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(42rem 42rem at 12% -8%, var(--glow-violet), transparent 62%),
+    radial-gradient(38rem 38rem at 88% 12%, var(--glow-indigo), transparent 60%),
+    radial-gradient(30rem 30rem at 70% 92%, var(--glow-cyan), transparent 65%);
+}
+
+.app-backdrop::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Glassy surface used by cards, panels and the brand bar */
+.surface-glass {
+  background: color-mix(in oklab, var(--card) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(1.35);
+  border: 1px solid var(--border);
+}
