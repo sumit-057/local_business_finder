@@ -28,7 +28,7 @@ export function AppShell({
   return (
     <div className="app-backdrop flex min-h-svh flex-col">
       <BrandBar />
-      <div className="mx-auto w-full max-w-7xl flex-1 px-4 pb-8 sm:px-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-8 sm:px-6">
         <section aria-label="Search" className="pt-14 pb-10 sm:pt-20">
           {search}
         </section>
@@ -69,7 +69,7 @@ export function AppShell({
             {map}
           </div>
         </section>
-      </div>
+      </main>
     </div>
   );
 }

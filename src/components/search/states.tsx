@@ -1,10 +1,13 @@
 "use client";
 
-import { MapPinOff, RefreshCcw } from "lucide-react";
+import { RefreshCcw } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-
+import {
+  EmptyIllustration,
+  ErrorIllustration,
+} from "@/components/brand/illustrations";
 export function SkeletonGrid({ count = 6 }: { count?: number }) {
   return (
     <div className="grid gap-3" aria-busy="true" aria-label="Loading results">
@@ -19,24 +22,6 @@ export function SkeletonGrid({ count = 6 }: { count?: number }) {
         </div>
       ))}
     </div>
-  );
-}
-
-/** Consistent line-style SVG art: a magnifier over a dotted map, nothing found. */
-export function EmptyIllustration() {
-  return (
-    <svg viewBox="0 0 120 80" fill="none" className="h-20 w-auto text-muted-foreground/70" aria-hidden>
-      <path
-        d="M8 62c10-14 18-14 26-6s16 8 24-2 18-10 26 0 16 8 28-4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeDasharray="1 5"
-        strokeLinecap="round"
-      />
-      <circle cx="30" cy="30" r="16" stroke="var(--primary)" strokeWidth="2" />
-      <path d="m42 42 12 12" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" />
-      <circle cx="30" cy="30" r="7" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 4" />
-    </svg>
   );
 }
 
@@ -83,7 +68,7 @@ export function ErrorState({ onRetry }: { onRetry: () => void }) {
       animate={{ opacity: 1, y: 0 }}
       className="surface-glass flex flex-col items-center gap-3 rounded-2xl p-10 text-center"
     >
-      <MapPinOff className="size-8 text-destructive/80" aria-hidden />
+      <ErrorIllustration />
       <p className="text-sm font-medium">Map data is unreachable</p>
       <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
         The public data provider didn&apos;t answer. It&apos;s usually back in
@@ -109,7 +94,7 @@ export function LocationDeniedState({
       animate={{ opacity: 1, y: 0 }}
       className="surface-glass mb-4 flex flex-col items-center gap-3 rounded-2xl p-8 text-center"
     >
-      <MapPinOff className="size-8 text-muted-foreground/80" aria-hidden />
+      <ErrorIllustration />
       <p className="text-sm font-medium">We couldn&apos;t get your location</p>
       <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
         Your browser blocked location access or couldn&apos;t find you. You can

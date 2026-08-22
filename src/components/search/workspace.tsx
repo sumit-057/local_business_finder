@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { motion, MotionConfig } from "motion/react";
 import { Heart, LocateFixed, X } from "lucide-react";
 import { PlaceCard } from "@/components/place/place-card";
 import { PlaceDetailSheet } from "@/components/place/place-detail-sheet";
@@ -14,6 +14,7 @@ import {
   SkeletonGrid,
 } from "@/components/search/states";
 import { AppShell, RegionPlaceholder } from "@/components/layout/app-shell";
+import { HeroIllustration } from "@/components/brand/illustrations";
 import { MapPane } from "@/components/map/map-pane";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -225,10 +226,11 @@ export function Workspace({
   const detailMatch = detailKey?.match(/^(node|way|relation)\/(\d+)$/);
 
   return (
-    <>
+    <MotionConfig reducedMotion="user">
     <AppShell
       search={
         <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4 text-center">
+          <HeroIllustration className="h-12 w-auto opacity-90" />
           <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             Find local businesses on{" "}
             <span className="bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
@@ -250,7 +252,11 @@ export function Workspace({
             aria-label="Category shortcuts"
           >
             {CATEGORIES.map((c) => (
-              <button key={c.key} onClick={() => void runSearch(c.exampleQuery)}>
+              <button
+                key={c.key}
+                onClick={() => void runSearch(c.exampleQuery)}
+                className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
                 <Badge
                   variant="secondary"
                   className="cursor-pointer rounded-full px-3 py-1 text-xs transition-colors hover:border-primary/50 hover:text-primary"
@@ -295,7 +301,7 @@ export function Workspace({
                 <button
                   key={q}
                   onClick={() => void runSearch(q)}
-                  className="rounded-full px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+                  className="rounded-full px-3 py-1 text-xs text-muted-foreground transition-colors outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   ⏎ {q}
                 </button>
@@ -325,7 +331,7 @@ export function Workspace({
                     onClick={() => openDetail(f)}
                     onKeyDown={(e) => e.key === "Enter" && openDetail(f)}
                     aria-label={`Open ${f.name}`}
-                    className="surface-glass group relative w-52 shrink-0 cursor-pointer snap-start rounded-xl p-3 pr-7 transition-colors hover:border-primary/40 focus-visible:border-ring"
+                    className="surface-glass group relative w-52 shrink-0 cursor-pointer snap-start rounded-xl p-3 pr-7 transition-colors hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <span className="block truncate text-xs font-semibold">
                       {f.name}
@@ -453,6 +459,6 @@ export function Workspace({
           onClose={closeDetail}
         />
       )}
-    </>
+      </MotionConfig>
   );
 }
