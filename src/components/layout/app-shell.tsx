@@ -64,7 +64,10 @@ export function AppShell({
             {results}
           </div>
           <div
-            className={cn("min-w-0", mobileView === "list" && "hidden lg:block")}
+            className={cn(
+              "min-w-0 lg:sticky lg:top-[4.5rem] lg:self-start",
+              mobileView === "map" && "hidden lg:block",
+            )}
           >
             {map}
           </div>

@@ -137,6 +137,22 @@
     radial-gradient(42rem 42rem at 12% -8%, var(--glow-violet), transparent 62%),
     radial-gradient(38rem 38rem at 88% 12%, var(--glow-indigo), transparent 60%),
     radial-gradient(30rem 30rem at 70% 92%, var(--glow-cyan), transparent 65%);
+  animation: glow-drift 28s ease-in-out infinite alternate;
+}
+
+/* Slow aurora drift — imperceptible as motion, felt as depth. */
+@keyframes glow-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 1.5%, 0) scale(1.06);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-backdrop::before {
+    animation: none;
+  }
 }
 
 .app-backdrop::after {
@@ -214,4 +230,17 @@
   box-shadow:
     0 0 0 8px color-mix(in oklab, var(--mark-from) 30%, transparent),
     0 3px 12px rgb(0 0 0 / 55%);
+}
+
+/* ── Slim scrollbars for horizontal shelves ───────────────────────────── */
+
+.scrollbar-slim::-webkit-scrollbar {
+  height: 6px;
+}
+.scrollbar-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-slim::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
 }

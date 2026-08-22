@@ -1,5 +1,5 @@
 import { normalizeNominatimPlace } from "@/lib/place";
-import { parseSmartQuery } from "@/lib/smart-query";
+import { extractPlacePhrase, parseSmartQuery } from "@/lib/smart-query";
 import { CACHE_CONTROL, PROVIDER_UA } from "@/server/upstream";
 import { LruCache } from "@/server/lru";
 import { acquireProviderSlot } from "@/server/rate-gate";
@@ -10,6 +10,8 @@ const cache = new LruCache<{ status: number; body: string }>(128);
 interface SearchPayload {
   query: string;
   category: string | null;
+  /** Set when zero hits triggered a retry with just the place phrase. */
+  fellBackToPlace?: string;
   places: unknown[];
 }
 
@@ -59,10 +61,43 @@ export async function GET(request: Request): Promise<Response> {
     );
   }
 
-  const hits = (await upstream.json()) as Parameters<typeof normalizeNominatimPlace>[0][];
+  let hits = (await upstream.json()) as Parameters<typeof normalizeNominatimPlace>[0][];
+
+  // Nominatim is a geocoder, not a keyword engine: free-form subjects
+  // ("software companies in Indore") often come back empty. Retry with
+  // just the place so the visitor still sees that place alive.
+  let fellBackToPlace: string | null = null;
+  if (hits.length === 0) {
+    const placePhrase = extractPlacePhrase(q);
+    if (placePhrase && placePhrase.toLowerCase() !== q.toLowerCase()) {
+      fellBackToPlace = placePhrase;
+      await acquireProviderSlot();
+      try {
+        upstream = await fetch(
+          `${NOMINATIM_URL}?q=${encodeURIComponent(placePhrase)}&format=jsonv2&limit=20&addressdetails=0`,
+          {
+            headers: { "User-Agent": PROVIDER_UA, Accept: "application/json" },
+            signal: AbortSignal.timeout(8_000),
+          },
+        );
+        if (upstream.ok) {
+          hits = (await upstream.json()) as typeof hits;
+          if (hits.length === 0) fellBackToPlace = null;
+        } else {
+          fellBackToPlace = null;
+        }
+      } catch {
+        fellBackToPlace = null;
+      }
+    }
+  }
+
   const body: SearchPayload = {
     query: q,
-    category: parsed.category?.label ?? null,
+    // After a fallback the results are generic place hits, not Category
+    // matches — reporting the original Category here would mislead.
+    category: fellBackToPlace ? null : (parsed.category?.label ?? null),
+    ...(fellBackToPlace ? { fellBackToPlace } : {}),
     places: hits.map(normalizeNominatimPlace),
   };
   cache.set(key, { status: 200, body: JSON.stringify(body) });

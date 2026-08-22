@@ -18,7 +18,7 @@ import { HeroIllustration } from "@/components/brand/illustrations";
 import { MapPane } from "@/components/map/map-pane";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES, matchPlaceCategory } from "@/lib/categories";
 import {
   addRecentSearch,
   removeFavorite,
@@ -27,13 +27,17 @@ import {
   useRecentSearches,
 } from "@/lib/local-store";
 import { highlightStateFor, placeCardElementId } from "@/lib/highlight";
+import { extractPlacePhrase } from "@/lib/smart-query";
 import type { OsmType, Place } from "@/lib/place";
 
 type Status = "loading" | "success" | "empty" | "error";
 
+const PAGE_SIZE = 12;
+
 interface SearchPayload {
   query: string;
   category: string | null;
+  fellBackToPlace?: string;
   places?: Place[];
 }
 
@@ -75,6 +79,12 @@ export function Workspace({
   const [locating, setLocating] = useState(false);
   const [geoDenied, setGeoDenied] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  /** The city part of the last Smart Query — chips re-target it. */
+  const [lastPlace, setLastPlace] = useState<string | null>(null);
+  const [fellBackToPlace, setFellBackToPlace] = useState<string | null>(null);
+  /** Category key filtering the current Nearby results (null = all). */
+  const [nearbyFilter, setNearbyFilter] = useState<string | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   /** The Category a Near Me search should radius around. */
   const activeCategory =
     CATEGORIES.find((c) => category === c.label) ?? CATEGORIES.find((c) => c.key === "cafe")!;
@@ -94,6 +104,9 @@ export function Workspace({
     setSelectedId(null);
     setNearby(false);
     setMode("search");
+    setFellBackToPlace(null);
+    setNearbyFilter(null);
+    setVisibleCount(PAGE_SIZE);
     window.history.replaceState(null, "", `/search?q=${encodeURIComponent(text)}`);
 
     try {
@@ -107,6 +120,10 @@ export function Workspace({
       }
       setPlaces(body.places ?? []);
       setCategory(body.category);
+      // Remember the city so Category chips can re-target it — even when
+      // the subject wasn't a known Category.
+      setLastPlace(extractPlacePhrase(text));
+      setFellBackToPlace(body.fellBackToPlace ?? null);
       addRecentSearch(text);
       setStatus((body.places?.length ?? 0) > 0 ? "success" : "empty");
     } catch (e) {
@@ -146,9 +163,13 @@ export function Workspace({
           setMode("nearby");
           setHoveredId(null);
           setSelectedId(null);
+          setFellBackToPlace(null);
+          setVisibleCount(PAGE_SIZE);
           try {
+            // One radius query unions every common Category; the visitor
+            // filters the result set locally without re-prompting GPS.
             const res = await fetch(
-              `/api/nearby?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&category=${activeCategory.key}`,
+              `/api/nearby?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&category=all`,
               { signal: controller.signal },
             );
             if (!res.ok) {
@@ -159,6 +180,13 @@ export function Workspace({
             setPlaces(body.places ?? []);
             setCategory(body.category);
             setNearby(true);
+            setNearbyFilter(
+              (body.places ?? []).some(
+                (p) => matchPlaceCategory(p.category)?.key === activeCategory.key,
+              )
+                ? activeCategory.key
+                : null,
+            );
             setStatus((body.places?.length ?? 0) > 0 ? "success" : "empty");
           } catch (e) {
             if ((e as Error).name !== "AbortError") setStatus("error");
@@ -225,6 +253,20 @@ export function Workspace({
   // The slide-over renders only for a well-formed detail key.
   const detailMatch = detailKey?.match(/^(node|way|relation)\/(\d+)$/);
 
+  /** Nearby results can be narrowed to one Category without refetching. */
+  const filteredPlaces =
+    nearby && nearbyFilter
+      ? places.filter(
+          (p) => matchPlaceCategory(p.category)?.key === nearbyFilter,
+        )
+      : places;
+  const nearbyCategories = nearby
+    ? CATEGORIES.filter((c) =>
+        places.some((p) => matchPlaceCategory(p.category)?.key === c.key),
+      )
+    : [];
+  const visiblePlaces = filteredPlaces.slice(0, visibleCount);
+
   return (
     <MotionConfig reducedMotion="user">
     <AppShell
@@ -254,7 +296,16 @@ export function Workspace({
             {CATEGORIES.map((c) => (
               <button
                 key={c.key}
-                onClick={() => void runSearch(c.exampleQuery)}
+                onClick={() =>
+                  void runSearch(
+                    lastPlace
+                      ? `${c.aliases[0]} in ${lastPlace}`
+                      : c.exampleQuery,
+                  )
+                }
+                title={
+                  lastPlace ? `${c.aliases[0]} in ${lastPlace}` : c.exampleQuery
+                }
                 className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Badge
@@ -319,7 +370,7 @@ export function Workspace({
                 Favorites
               </p>
               <div
-                className="flex snap-x gap-2 overflow-x-auto pb-1"
+                className="scrollbar-slim flex snap-x gap-2 overflow-x-auto pb-1"
                 role="list"
                 aria-label="Saved places"
               >
@@ -359,14 +410,14 @@ export function Workspace({
             <LocationDeniedState onExample={(q) => void runSearch(q)} />
           )}
           {query && (
-            <p className="mb-3 flex items-center gap-2 px-1 text-xs text-muted-foreground" aria-live="polite">
+            <p className="mb-3 flex flex-wrap items-center gap-2 px-1 text-xs text-muted-foreground" aria-live="polite">
               <span>
                 {status === "loading"
                   ? nearby
-                    ? `Searching ${category ?? "places"} near you…`
+                    ? "Searching around you…"
                     : `Searching "${query}"…`
                   : nearby
-                    ? `${places.length} place${places.length === 1 ? "" : "s"} near you`
+                    ? `${filteredPlaces.length} place${filteredPlaces.length === 1 ? "" : "s"} near you`
                     : `${places.length} place${places.length === 1 ? "" : "s"} for "${query}"`}
               </span>
               {category && status === "success" && (
@@ -375,6 +426,56 @@ export function Workspace({
                 </Badge>
               )}
             </p>
+          )}
+          {fellBackToPlace && status !== "loading" && (
+            <p className="mb-3 rounded-xl border border-border bg-accent/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+              No exact matches for &ldquo;{query}&rdquo; — showing the best of{" "}
+              <span className="font-medium text-foreground">
+                {fellBackToPlace}
+              </span>{" "}
+              instead. Try a Category chip to narrow it down.
+            </p>
+          )}
+          {nearby && status === "success" && places.length > 0 && (
+            <div
+              className="mb-3 flex flex-wrap items-center gap-1.5"
+              role="group"
+              aria-label="Filter nearby results by category"
+            >
+              <button
+                onClick={() => {
+                  setNearbyFilter(null);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                aria-pressed={nearbyFilter === null}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  nearbyFilter === null
+                    ? "bg-primary text-primary-foreground"
+                    : "surface-glass text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All ({places.length})
+              </button>
+              {nearbyCategories.map((c) => {
+                const n = places.filter(
+                  (p) => matchPlaceCategory(p.category)?.key === c.key,
+                ).length;
+                return (
+                  <button
+                    key={c.key}
+                    onClick={() => setNearbyFilter(c.key)}
+                    aria-pressed={nearbyFilter === c.key}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      nearbyFilter === c.key
+                        ? "bg-primary text-primary-foreground"
+                        : "surface-glass text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {c.label} ({n})
+                  </button>
+                );
+              })}
+            </div>
           )}
           {status === "loading" && <SkeletonGrid />}
           {status === "empty" && (
@@ -393,24 +494,41 @@ export function Workspace({
             />
           )}
           {status === "success" &&
-            (places.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                {places.map((p, i) => (
-                  <PlaceCard
-                    key={p.id}
-                    place={p}
-                    index={i}
-                    state={highlightStateFor(p.id, hoveredId, selectedId)}
-                    favorite={favorites.some((f) => f.id === p.id)}
-                    onHoverStart={() => setHoveredId(p.id)}
-                    onHoverEnd={() =>
-                      setHoveredId((cur) => (cur === p.id ? null : cur))
-                    }
-                    onSelect={() => openDetail(p)}
-                    onToggleFavorite={() => toggleFavorite(p)}
-                  />
-                ))}
-              </div>
+            (filteredPlaces.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {visiblePlaces.map((p, i) => (
+                    <PlaceCard
+                      key={p.id}
+                      place={p}
+                      index={i}
+                      state={highlightStateFor(p.id, hoveredId, selectedId)}
+                      favorite={favorites.some((f) => f.id === p.id)}
+                      onHoverStart={() => setHoveredId(p.id)}
+                      onHoverEnd={() =>
+                        setHoveredId((cur) => (cur === p.id ? null : cur))
+                      }
+                      onSelect={() => openDetail(p)}
+                      onToggleFavorite={() => toggleFavorite(p)}
+                    />
+                  ))}
+                </div>
+                {visibleCount < filteredPlaces.length && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() =>
+                        setVisibleCount((n) => n + PAGE_SIZE)
+                      }
+                    >
+                      Show more ({filteredPlaces.length - visibleCount}{" "}
+                      remaining)
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
               <RegionPlaceholder
                 icon="search"
@@ -425,7 +543,7 @@ export function Workspace({
         // pan/zoom survive and the pane never remounts between queries.
         query ? (
           <MapPane
-            places={places}
+            places={filteredPlaces}
             hoveredId={hoveredId}
             selectedId={selectedId}
             onHover={handleMapHover}

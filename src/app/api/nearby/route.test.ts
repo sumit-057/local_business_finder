@@ -130,6 +130,25 @@ describe("GET /api/nearby", () => {
     expect((await res.json()).error.code).toBe("upstream_error");
   });
 
+  it("unions every Category's tags for category=all", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ version: 0.6, elements: [] })),
+    );
+    const res = await get("lat=18.5&lon=73.8&category=all");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.category).toBe("Places");
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    const query = decodeURIComponent(String(init.body));
+    expect(query).toContain("shop=hairdresser");
+    expect(query).toContain("office=it");
+    expect(query).toContain("amenity=hospital");
+  });
+
   it("sets platform cache headers on success", async () => {
     const res = await get("lat=1.1&lon=2.2&category=bakery");
     expect(res.headers.get("Cache-Control")).toContain("s-maxage=60");

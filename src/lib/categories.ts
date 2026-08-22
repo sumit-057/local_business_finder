@@ -58,6 +58,50 @@ export const CATEGORIES: Category[] = [
     exampleQuery: "bakeries in Paris",
     osmTags: ["shop=bakery"],
   },
+  {
+    key: "software",
+    label: "Software",
+    aliases: [
+      "software company",
+      "software companies",
+      "it company",
+      "it companies",
+      "tech company",
+      "tech companies",
+      "software firm",
+      "software firms",
+    ],
+    exampleQuery: "software companies in Indore",
+    osmTags: ["office=it", "office=company"],
+  },
+  {
+    key: "hotel",
+    label: "Hotel",
+    aliases: ["hotel", "hotels"],
+    exampleQuery: "hotels in Jaipur",
+    osmTags: ["tourism=hotel", "tourism=guest_house"],
+  },
+  {
+    key: "hospital",
+    label: "Hospital",
+    aliases: ["hospital", "hospitals", "clinic", "clinics"],
+    exampleQuery: "hospitals in Chennai",
+    osmTags: ["amenity=hospital", "amenity=clinic"],
+  },
+  {
+    key: "school",
+    label: "School",
+    aliases: ["school", "schools"],
+    exampleQuery: "schools in Hyderabad",
+    osmTags: ["amenity=school"],
+  },
+  {
+    key: "bank",
+    label: "Bank",
+    aliases: ["bank", "banks", "atm", "atms"],
+    exampleQuery: "banks in Kolkata",
+    osmTags: ["amenity=bank", "amenity=atm"],
+  },
 ];
 
 export function findCategory(alias: string): Category | null {
@@ -73,6 +117,22 @@ export function findCategory(alias: string): Category | null {
 export function findCategoryByKey(key: string): Category | null {
   const needle = key.trim().toLowerCase();
   return CATEGORIES.find((c) => c.key === needle) ?? null;
+}
+
+/**
+ * Reverse lookup: which Category (if any) owns a normalized Place's
+ * category tag path ("shop/hairdresser" → salon). Used to group and
+ * filter radius results.
+ */
+export function matchPlaceCategory(
+  placeCategory: string | null,
+): Category | null {
+  if (!placeCategory) return null;
+  return (
+    CATEGORIES.find((c) =>
+      c.osmTags.some((tag) => tag.replace("=", "/") === placeCategory),
+    ) ?? null
+  );
 }
 
 /** The query preloaded on first visit so the product lands alive. */

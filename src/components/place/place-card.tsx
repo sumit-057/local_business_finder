@@ -43,7 +43,7 @@ export function PlaceCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.4) }}
-      className={`surface-glass group cursor-pointer rounded-2xl p-4 transition-colors hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring ${STATE_STYLES[state]}`}
+      className={`surface-glass group cursor-pointer rounded-2xl p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-black/30 focus-visible:ring-2 focus-visible:ring-ring ${STATE_STYLES[state]}`}
       tabIndex={0}
       aria-label={place.name}
       aria-current={state === "selected" || undefined}

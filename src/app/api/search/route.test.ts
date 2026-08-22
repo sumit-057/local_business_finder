@@ -125,4 +125,38 @@ describe("GET /api/search", () => {
     const body = await res.json();
     expect(["upstream_error", "upstream_unavailable"]).toContain(body.error.code);
   });
+
+  it("retries with the place phrase alone when a verbatim query has zero hits", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse([]))
+        .mockResolvedValueOnce(jsonResponse(fixture)),
+    );
+    const res = await get("software companies in Indore");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.fellBackToPlace).toBe("Indore");
+    // First call used the full text; second call the place phrase only.
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("q=software%20companies%20in%20Indore"),
+      expect.anything(),
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("q=Indore"),
+      expect.anything(),
+    );
+    expect(body.places.length).toBeGreaterThan(0);
+  });
+
+  it("does not set fellBackToPlace when even the place phrase has no hits", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse([])));
+    const res = await get("software companies in Nowhereville");
+    const body = await res.json();
+    expect(body.places).toEqual([]);
+    expect(body.fellBackToPlace).toBeUndefined();
+  });
 });

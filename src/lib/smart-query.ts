@@ -25,3 +25,13 @@ export function parseSmartQuery(input: string): ParsedSmartQuery {
 
   return { category, placePhrase: match[2].trim(), searchText: text };
 }
+
+/**
+ * Extracts the place phrase from any "<subject> in <place>" query,
+ * regardless of whether the subject matches a Category. Used for the
+ * place-only fallback retry when a verbatim search comes back empty.
+ */
+export function extractPlacePhrase(input: string): string | null {
+  const match = /^(.+?)\s+in\s+(.+)$/i.exec(input.trim());
+  return match ? match[2].trim() : null;
+}

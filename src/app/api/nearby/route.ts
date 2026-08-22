@@ -1,4 +1,4 @@
-import { findCategoryByKey } from "@/lib/categories";
+import { CATEGORIES, findCategoryByKey } from "@/lib/categories";
 import { normalizeOverpassPlace, type OverpassElement } from "@/lib/place";
 import { CACHE_CONTROL, PROVIDER_UA } from "@/server/upstream";
 import { LruCache } from "@/server/lru";
@@ -42,7 +42,7 @@ export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const lat = Number(params.get("lat"));
   const lon = Number(params.get("lon"));
-  const category = findCategoryByKey(params.get("category") ?? "");
+  const categoryParam = params.get("category") ?? "";
   const radius = Math.min(
     MAX_RADIUS_M,
     Math.max(MIN_RADIUS_M, Number(params.get("radius")) || DEFAULT_RADIUS_M),
@@ -54,13 +54,23 @@ export async function GET(request: Request): Promise<Response> {
   if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
     return invalid("lon must be a number between -180 and 180.");
   }
-  if (!category) {
-    return invalid("category must be one of the known Category keys.");
+
+  // "all" unions every Category's tags in one upstream round-trip; the
+  // client then filters locally per Category.
+  const isAll = !categoryParam || categoryParam === "all";
+  const category = findCategoryByKey(categoryParam);
+  if (!isAll && !category) {
+    return invalid("category must be a known Category key or 'all'.");
   }
+  const osmTags = isAll
+    ? CATEGORIES.flatMap((c) => c.osmTags)
+    : category!.osmTags;
+  const label = isAll ? "Places" : category!.label;
 
   // Coordinates are rounded for the cache key so nearby visitors share
   // platform-cached responses.
-  const cacheKey = `nearby:${category.key}:${radius}:${lat.toFixed(3)}:${lon.toFixed(3)}`;
+  const scopeKey = isAll ? "all" : category!.key;
+  const cacheKey = `nearby:${scopeKey}:${radius}:${lat.toFixed(3)}:${lon.toFixed(3)}`;
   const cached = cache.get(cacheKey);
   if (cached) {
     return new Response(cached.body, {
@@ -69,14 +79,14 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  // One union statement per OSM tag the Category maps to.
-  const selectors = category.osmTags
+  // One union statement per OSM tag.
+  const selectors = osmTags
     .map(
       (tag) =>
         `nwr[${tag}](around:${radius},${lat.toFixed(6)},${lon.toFixed(6)});`,
     )
     .join("");
-  const query = `[out:json][timeout:8];(${selectors});out tags center 20;`;
+  const query = `[out:json][timeout:10];(${selectors});out tags center ${isAll ? 60 : 20};`;
   await acquireProviderSlot();
 
   let upstream: Response;
@@ -120,7 +130,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const parsed = (await upstream.json()) as { elements?: OverpassElement[] };
   const body: NearbyPayload = {
-    category: category.label,
+    category: label,
     radius,
     origin: { lat, lon },
     places: (parsed.elements ?? []).map(normalizeOverpassPlace),
