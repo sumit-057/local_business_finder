@@ -1,9 +1,9 @@
-import { Heart, MapPin } from "lucide-react";
+import { Heart } from "lucide-react";
 import { motion } from "motion/react";
-import { Badge } from "@/components/ui/badge";
 import type { Place } from "@/lib/place";
 import { placeCardElementId } from "@/lib/highlight";
 import type { HighlightState } from "@/lib/highlight";
+import { CategoryIcon, categoryGradientClass } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 
 function prettyCategory(category: string | null): string {
@@ -37,13 +37,15 @@ export function PlaceCard({
   onSelect?: () => void;
   onToggleFavorite?: () => void;
 }) {
+  const gradient = categoryGradientClass(place.category);
+
   return (
     <motion.article
       id={placeCardElementId(place.id)}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.4) }}
-      className={`surface-glass group cursor-pointer rounded-2xl p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-black/30 focus-visible:ring-2 focus-visible:ring-ring ${STATE_STYLES[state]}`}
+      className={`surface-glass group relative cursor-pointer overflow-hidden rounded-2xl p-0 transition-all duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring ${STATE_STYLES[state]}`}
       tabIndex={0}
       aria-label={place.name}
       aria-current={state === "selected" || undefined}
@@ -53,24 +55,40 @@ export function PlaceCard({
       onBlur={onHoverEnd}
       onClick={onSelect}
     >
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-primary transition-transform group-hover:scale-105">
-          <MapPin className="size-4" aria-hidden />
+      {/* Edge-light + brand glow on hover */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+        style={{
+          background:
+            "linear-gradient(to bottom right, color-mix(in oklab, var(--primary) 14%, transparent), transparent 45%)",
+          boxShadow:
+            "inset 0 1px 0 color-mix(in oklab, white 12%, transparent), 0 8px 28px -10px color-mix(in oklab, var(--primary) 45%, transparent)",
+        }}
+      />
+
+      <div className="relative flex items-start gap-3 p-3.5">
+        <div
+          className={cn(
+            "flex size-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-linear-to-br text-primary-foreground shadow-inner transition-transform duration-200 group-hover:scale-105",
+            gradient,
+          )}
+        >
+          <CategoryIcon placeCategory={place.category} className="size-5" />
         </div>
-        <div className="min-w-0">
+
+        <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-semibold tracking-tight">
             {place.name}
           </h3>
-          <Badge
-            variant="secondary"
-            className="mt-1 rounded-full px-2 py-0 text-[11px] capitalize"
-          >
+          <p className="mt-0.5 truncate text-[11px] capitalize text-muted-foreground">
             {prettyCategory(place.category)}
-          </Badge>
-          <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-            {place.address}
+          </p>
+          <p className="mt-1 line-clamp-1 text-xs leading-relaxed text-muted-foreground/90">
+            {place.address || "\u00A0"}
           </p>
         </div>
+
         {onToggleFavorite && (
           <button
             type="button"
@@ -79,8 +97,12 @@ export function PlaceCard({
               onToggleFavorite();
             }}
             aria-pressed={favorite}
-            aria-label={favorite ? `Remove ${place.name} from favorites` : `Save ${place.name} to favorites`}
-            className="ml-auto shrink-0 self-start rounded-full p-1.5 text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={
+              favorite
+                ? `Remove ${place.name} from favorites`
+                : `Save ${place.name} to favorites`
+            }
+            className="absolute top-2.5 right-2.5 shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Heart
               className={cn(

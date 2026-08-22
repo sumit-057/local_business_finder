@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { OsmType, Place, PlaceEnrichment } from "@/lib/place";
+import { categoryGradientClass, CategoryIcon } from "@/lib/category-icons";
 import { toggleFavorite, useFavorites } from "@/lib/local-store";
 import { cn } from "@/lib/utils";
 
@@ -67,14 +68,16 @@ export function PlaceDetailSheet({
 }) {
   const [entries, setEntries] = useState<Record<string, Entry>>({});
   const [attempt, setAttempt] = useState(0);
-  /** Keys already fetched or in flight — guards without retriggering. */
-  const inFlightRef = useRef<Set<string>>(new Set());
+  /** One live request per key; a newer run supersedes an older one. */
+  const controllersRef = useRef(new Map<string, AbortController>());
   const cacheKey = `${osmType}/${osmId}#${attempt}`;
 
   useEffect(() => {
-    if (!open || inFlightRef.current.has(cacheKey)) return;
-    inFlightRef.current.add(cacheKey);
+    if (!open || entries[cacheKey]) return;
+    // Take over from any superseded request for this key.
+    controllersRef.current.get(cacheKey)?.abort();
     const controller = new AbortController();
+    controllersRef.current.set(cacheKey, controller);
 
     fetch(`/api/place/${osmType}/${osmId}`, { signal: controller.signal })
       .then(async (res) => {
@@ -90,16 +93,14 @@ export function PlaceDetailSheet({
         setEntries((prev) => ({ ...prev, [cacheKey]: next }));
       })
       .catch((e: unknown) => {
-        if ((e as Error).name === "AbortError") {
-          // Abandoned lookup must be retryable on the next open.
-          inFlightRef.current.delete(cacheKey);
-          return;
-        }
+        // Superseded or abandoned requests stay silent and retryable.
+        if ((e as Error).name === "AbortError") return;
         setEntries((prev) => ({ ...prev, [cacheKey]: { status: "error" } }));
       });
 
     return () => controller.abort();
-  }, [open, osmType, osmId, attempt, cacheKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, cacheKey]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
@@ -159,8 +160,16 @@ export function PlaceDetailSheet({
         {status === "ready" && place && (
           <>
             <SheetHeader className="pb-2 pr-10">
-              <div className="flex items-start justify-between gap-2">
-                <SheetTitle className="text-lg font-semibold tracking-tight">
+              <div className="flex items-start gap-3">
+                <div
+                  className={cn(
+                    "flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-linear-to-br text-primary-foreground",
+                    categoryGradientClass(place.category),
+                  )}
+                >
+                  <CategoryIcon placeCategory={place.category} />
+                </div>
+                <SheetTitle className="min-w-0 flex-1 pt-1 text-lg leading-snug font-semibold tracking-tight">
                   {place.name}
                 </SheetTitle>
                 <button

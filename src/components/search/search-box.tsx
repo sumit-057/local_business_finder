@@ -17,7 +17,7 @@ export function SearchBox({
 
   return (
     <form
-      className="surface-glass flex w-full items-center gap-2 rounded-full p-1.5 pl-5 shadow-lg shadow-black/20 transition-shadow focus-within:shadow-primary/20 focus-within:ring-1 focus-within:ring-ring"
+      className="surface-glass flex w-full items-center gap-2 rounded-full p-1.5 pl-5 shadow-lg shadow-black/25 transition-all duration-300 focus-within:shadow-[0_0_32px_-6px_color-mix(in_oklab,var(--primary)_55%,transparent)] focus-within:ring-2 focus-within:ring-ring"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit(value);
@@ -34,7 +34,11 @@ export function SearchBox({
         className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         autoFocus
       />
-      <Button size="sm" className="rounded-full" disabled={busy || !value.trim()}>
+      <Button
+        size="sm"
+        className="rounded-full shadow-[0_0_18px_-4px_color-mix(in_oklab,var(--primary)_70%,transparent)]"
+        disabled={busy || !value.trim()}
+      >
         {busy ? "Searching…" : "Search"}
       </Button>
     </form>

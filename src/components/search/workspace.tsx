@@ -28,6 +28,8 @@ import {
 } from "@/lib/local-store";
 import { highlightStateFor, placeCardElementId } from "@/lib/highlight";
 import { extractPlacePhrase } from "@/lib/smart-query";
+import { CategoryIcon, categoryGradientClass } from "@/lib/category-icons";
+import { cn } from "@/lib/utils";
 import type { OsmType, Place } from "@/lib/place";
 
 type Status = "loading" | "success" | "empty" | "error";
@@ -271,14 +273,20 @@ export function Workspace({
     <MotionConfig reducedMotion="user">
     <AppShell
       search={
-        <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4 text-center">
-          <HeroIllustration className="h-12 w-auto opacity-90" />
-          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            Find local businesses on{" "}
-            <span className="bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              live map data
-            </span>
-          </h1>
+        <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-5 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <HeroIllustration className="h-12 w-auto opacity-90" />
+            <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+              Every corner, on{" "}
+              <span className="bg-linear-to-r from-primary via-fuchsia-400 to-primary/70 bg-clip-text text-transparent">
+                live map data
+              </span>
+            </h1>
+            <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+              Real places, contributed by real people — no listings, no ads.
+              Ask naturally; we parse the rest.
+            </p>
+          </div>
           <div className="w-full">
             <SearchBox
               initialQuery={initialQuery}
@@ -382,12 +390,22 @@ export function Workspace({
                     onClick={() => openDetail(f)}
                     onKeyDown={(e) => e.key === "Enter" && openDetail(f)}
                     aria-label={`Open ${f.name}`}
-                    className="surface-glass group relative w-52 shrink-0 cursor-pointer snap-start rounded-xl p-3 pr-7 transition-colors hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring"
+                    className="surface-glass group relative w-56 shrink-0 cursor-pointer snap-start rounded-xl p-3 pr-7 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <span className="block truncate text-xs font-semibold">
-                      {f.name}
-                    </span>
-                    <span className="block truncate text-[11px] text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={cn(
+                          "flex size-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-linear-to-br text-primary-foreground",
+                          categoryGradientClass(f.category),
+                        )}
+                      >
+                        <CategoryIcon placeCategory={f.category} className="size-3.5" />
+                      </div>
+                      <span className="block truncate text-xs font-semibold">
+                        {f.name}
+                      </span>
+                    </div>
+                    <span className="mt-1 block truncate text-[11px] text-muted-foreground">
                       {f.address || f.category || f.id}
                     </span>
                     <button
