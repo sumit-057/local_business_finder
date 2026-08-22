@@ -6,6 +6,7 @@ import { Heart, LocateFixed, X } from "lucide-react";
 import { PlaceCard } from "@/components/place/place-card";
 import { PlaceDetailSheet } from "@/components/place/place-detail-sheet";
 import { SearchBox } from "@/components/search/search-box";
+import { SearchPalette } from "@/components/search/search-palette";
 import {
   EmptyState,
   ErrorState,
@@ -72,6 +73,7 @@ export function Workspace({
   const [mode, setMode] = useState<"search" | "nearby">("search");
   const [locating, setLocating] = useState(false);
   const [geoDenied, setGeoDenied] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   /** The Category a Near Me search should radius around. */
   const activeCategory =
     CATEGORIES.find((c) => category === c.label) ?? CATEGORIES.find((c) => c.key === "cafe")!;
@@ -272,6 +274,15 @@ export function Workspace({
             />
             {locating ? "Locating…" : "Near Me"}
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="rounded-full text-muted-foreground"
+            onClick={() => setPaletteOpen(true)}
+            title="Open the command palette"
+          >
+            Search <kbd className="font-sans text-[10px] tracking-widest">⌘K</kbd>
+          </Button>
           {recentSearches.length > 0 && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -427,6 +438,11 @@ export function Workspace({
       }
       mobileView={mobileView}
       onMobileViewChange={setMobileView}
+      />
+      <SearchPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        onSubmit={(q) => void runSearch(q)}
       />
       {detailMatch && (
         <PlaceDetailSheet
