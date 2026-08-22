@@ -42,6 +42,7 @@ const PlaceMiniMap = dynamic(() => import("@/components/map/place-mini-map"), {
 interface DetailPayload {
   place: Place;
   enrichment: PlaceEnrichment;
+  photoUrl?: string;
 }
 
 /** One enrichment lookup outcome, cached per place+attempt. */
@@ -140,11 +141,13 @@ export function PlaceDetailSheet({
   const favorites = useFavorites();
   const favorite = place ? favorites.some((p) => p.id === place.id) : false;
   const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
+  const volunteerPhoto = enrichment?.imageUrl;
+  const wikiPhoto =
+    entry?.status === "ready" ? entry.payload?.photoUrl : undefined;
+  const photoSrc = volunteerPhoto || wikiPhoto || null;
   const imgSrc =
-    enrichment?.imageUrl &&
-    /^https?:\/\//i.test(enrichment.imageUrl) &&
-    !brokenImages.has(enrichment.imageUrl)
-      ? enrichment.imageUrl
+    photoSrc && /^https?:\/\//i.test(photoSrc) && !brokenImages.has(photoSrc)
+      ? photoSrc
       : null;
 
   const directionsUrl = place
@@ -192,11 +195,16 @@ export function PlaceDetailSheet({
               <img
                 src={imgSrc}
                 alt={`Photo of ${place.name}`}
-                className="h-40 w-full shrink-0 border-b border-border object-cover"
+                className="h-44 w-full shrink-0 border-b border-border object-cover"
                 onError={() =>
                   setBrokenImages((prev) => new Set(prev).add(imgSrc))
                 }
               />
+            )}
+            {imgSrc && !volunteerPhoto && (
+              <p className="px-4 pt-1 text-[10px] text-muted-foreground/70">
+                Photo via Wikipedia · CC
+              </p>
             )}
             <SheetHeader className="pb-2 pr-10">
               <div className="flex items-start gap-3">
@@ -266,36 +274,62 @@ export function PlaceDetailSheet({
                 {formatCoords(place.lat, place.lon)}
               </p>
 
-              {enrichment?.phone && (
-                <a
-                  href={`tel:${enrichment.phone.replace(/\s+/g, "")}`}
-                  className="flex items-center gap-2.5 text-sm transition-colors hover:text-primary"
-                >
-                  <Phone className="size-4 text-primary" aria-hidden />
-                  {enrichment.phone}
-                </a>
-              )}
-
-              {enrichment?.email && (
-                <a
-                  href={`mailto:${enrichment.email}`}
-                  className="flex min-w-0 items-center gap-2.5 text-sm transition-colors hover:text-primary"
-                >
-                  <Mail className="size-4 shrink-0 text-primary" aria-hidden />
-                  <span className="truncate">{enrichment.email}</span>
-                </a>
-              )}
-
-              {enrichment?.website && (
-                <a
-                  href={enrichment.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex min-w-0 items-center gap-2.5 text-sm transition-colors hover:text-primary"
-                >
-                  <Globe className="size-4 shrink-0 text-primary" aria-hidden />
-                  <span className="truncate">{enrichment.website}</span>
-                </a>
+              {/* Contact tiles */}
+              {(enrichment?.phone ||
+                enrichment?.email ||
+                enrichment?.website) && (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {enrichment.phone && (
+                    <a
+                      href={`tel:${enrichment.phone.replace(/\s+/g, "")}`}
+                      className="surface-glass flex items-center gap-2.5 rounded-xl p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40"
+                    >
+                      <Phone className="size-4 shrink-0 text-primary" aria-hidden />
+                      <span className="min-w-0">
+                        <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Phone
+                        </span>
+                        <span className="block truncate text-sm font-medium">
+                          {enrichment.phone}
+                        </span>
+                      </span>
+                    </a>
+                  )}
+                  {enrichment.email && (
+                    <a
+                      href={`mailto:${enrichment.email}`}
+                      className="surface-glass flex items-center gap-2.5 rounded-xl p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40"
+                    >
+                      <Mail className="size-4 shrink-0 text-primary" aria-hidden />
+                      <span className="min-w-0">
+                        <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Email
+                        </span>
+                        <span className="block truncate text-sm font-medium">
+                          {enrichment.email}
+                        </span>
+                      </span>
+                    </a>
+                  )}
+                  {enrichment.website && (
+                    <a
+                      href={enrichment.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="surface-glass flex items-center gap-2.5 rounded-xl p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 sm:col-span-2"
+                    >
+                      <Globe className="size-4 shrink-0 text-primary" aria-hidden />
+                      <span className="min-w-0">
+                        <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Website
+                        </span>
+                        <span className="block truncate text-sm font-medium text-primary">
+                          {enrichment.website.replace(/^https?:\/\//, "")}
+                        </span>
+                      </span>
+                    </a>
+                  )}
+                </div>
               )}
 
               {enrichment?.cuisine && (

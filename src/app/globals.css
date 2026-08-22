@@ -244,3 +244,20 @@
   border-radius: 9999px;
   background: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
 }
+
+/* ── Gradient text shimmer ────────────────────────────────────────────── */
+
+.text-shimmer {
+  background-size: 220% auto;
+  animation: text-shimmer 7s linear infinite;
+}
+@keyframes text-shimmer {
+  to {
+    background-position: -220% center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .text-shimmer {
+    animation: none;
+  }
+}

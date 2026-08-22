@@ -18,6 +18,7 @@ const richNodeFixture = {
         opening_hours: "Mo-Sa 10:00-20:00",
         email: "hello@lakme.example.com",
         wheelchair: "yes",
+        image: "https://upload.wikimedia.org/salon-photo.jpg",
         "addr:housenumber": "12",
         "addr:street": "Nagras Road",
         "addr:city": "Pune",
@@ -178,6 +179,41 @@ describe("GET /api/place/[osmType]/[id]", () => {
     const res = await get("node", "424242");
     expect(res.status).toBe(502);
     expect((await res.json()).error.code).toBe("upstream_error");
+  });
+
+  it("prefers the volunteer-tagged image as photoUrl", async () => {
+    // Unique id so we exercise the live path, not an earlier cache entry.
+    const res = await get("node", "777001");
+    const body = await res.json();
+    expect(body.photoUrl).toBe("https://upload.wikimedia.org/salon-photo.jpg");
+    // No Wikipedia lookup needed when an image is tagged.
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to a nearby Wikipedia photo when no image is tagged", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(sparseWayFixture))
+        .mockResolvedValueOnce(
+          jsonResponse({
+            query: {
+              pages: [
+                { title: "Unrelated", thumbnail: undefined },
+                {
+                  title: "Kalyani Nagar",
+                  thumbnail: {
+                    source: "https://upload.wikimedia.org/kalyani.jpg",
+                  },
+                },
+              ],
+            },
+          }),
+        ),
+    );
+    const body = await (await get("way", "888001")).json();
+    expect(body.photoUrl).toBe("https://upload.wikimedia.org/kalyani.jpg");
   });
 
   it("sets platform cache headers on success", async () => {

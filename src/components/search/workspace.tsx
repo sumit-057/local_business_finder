@@ -14,7 +14,7 @@ import {
   SkeletonGrid,
 } from "@/components/search/states";
 import { AppShell, RegionPlaceholder } from "@/components/layout/app-shell";
-import { HeroIllustration } from "@/components/brand/illustrations";
+import { HeroAnimation } from "@/components/brand/hero-animation";
 import { MapPane } from "@/components/map/map-pane";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -373,10 +373,10 @@ export function Workspace({
       search={
         <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-5 text-center">
           <div className="flex flex-col items-center gap-2">
-            <HeroIllustration className="h-12 w-auto opacity-90" />
+            <HeroAnimation className="h-14 w-auto opacity-95" />
             <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
               Every corner, on{" "}
-              <span className="bg-linear-to-r from-primary via-fuchsia-400 to-primary/70 bg-clip-text text-transparent">
+              <span className="text-shimmer bg-linear-to-r from-primary via-fuchsia-400 from-30% via-50% to-primary/70 bg-clip-text text-transparent">
                 live map data
               </span>
             </h1>

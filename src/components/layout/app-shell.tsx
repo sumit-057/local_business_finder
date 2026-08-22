@@ -1,5 +1,6 @@
 import { List, Map as MapIcon, MapPin, Search } from "lucide-react";
 import { BrandBar } from "@/components/layout/brand-bar";
+import { DotField } from "@/components/fx/dot-field";
 import { cn } from "@/lib/utils";
 
 /**
@@ -27,8 +28,9 @@ export function AppShell({
 
   return (
     <div className="app-backdrop flex min-h-svh flex-col">
+      <DotField className="pointer-events-none fixed inset-0 z-0 opacity-60" />
       <BrandBar />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-8 sm:px-6">
+      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 pb-8 sm:px-6">
         <section aria-label="Search" className="pt-14 pb-10 sm:pt-20">
           {search}
         </section>
