@@ -67,7 +67,7 @@ export function PlaceCard({
         }}
       />
 
-      <div className="relative flex items-start gap-3 p-3.5">
+      <div className="relative flex items-start gap-3 p-3.5 pr-12">
         <div
           className={cn(
             "flex size-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-linear-to-br text-primary-foreground shadow-inner transition-transform duration-200 group-hover:scale-105",
@@ -102,7 +102,7 @@ export function PlaceCard({
                 ? `Remove ${place.name} from favorites`
                 : `Save ${place.name} to favorites`
             }
-            className="absolute top-2.5 right-2.5 shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+            className="absolute top-2 right-2 shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Heart
               className={cn(

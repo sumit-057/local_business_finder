@@ -158,7 +158,9 @@ export function PlaceDetailSheet({
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
-        {status === "loading" && (
+        {/* Pure skeleton only when we know nothing about the place yet;
+            otherwise content renders instantly and extras stream in. */}
+        {status === "loading" && !place && (
           <div className="flex flex-col gap-3 p-4">
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
@@ -168,7 +170,7 @@ export function PlaceDetailSheet({
           </div>
         )}
 
-        {(status === "error" || status === "missing") && (
+        {(status === "error" || status === "missing") && !place && (
           <div className="flex flex-col items-start gap-3 p-4">
             <SheetTitle>
               {status === "missing"
@@ -188,7 +190,7 @@ export function PlaceDetailSheet({
           </div>
         )}
 
-        {status === "ready" && place && (
+        {place && (
           <>
             {imgSrc && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -412,7 +414,32 @@ export function PlaceDetailSheet({
                 </p>
               )}
 
+              {status === "loading" && (
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Skeleton className="size-3 rounded-full" />
+                  Loading extra details…
+                </p>
+              )}
+
+              {(status === "error" || status === "missing") && (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-accent/40 p-2.5">
+                  <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground">
+                    {status === "missing"
+                      ? "Extra details are unavailable for this place."
+                      : "Extra details didn't load just now."}
+                  </p>
+                  {status === "error" && (
+                    <Button variant="secondary" size="xs" onClick={retry}>
+                      Retry
+                    </Button>
+                  )}
+                </div>
+              )}
+
               {!(
+                status === "loading" ||
+                status === "error" ||
+                status === "missing" ||
                 enrichment?.phone ||
                 enrichment?.email ||
                 enrichment?.website ||
