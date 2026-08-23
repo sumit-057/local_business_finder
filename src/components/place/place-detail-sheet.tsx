@@ -13,6 +13,7 @@ import {
   Mail,
   Navigation,
   Phone,
+  Share2,
   ShoppingBag,
   Tag,
   UtensilsCrossed,
@@ -205,7 +206,7 @@ export function PlaceDetailSheet({
             )}
             {imgSrc && !volunteerPhoto && (
               <p className="px-4 pt-1 text-[10px] text-muted-foreground/70">
-                Photo via Wikipedia · CC
+                Photo of the area · via Wikipedia · CC
               </p>
             )}
             <SheetHeader className="pb-2 pr-10">
@@ -331,6 +332,28 @@ export function PlaceDetailSheet({
                       </span>
                     </a>
                   )}
+                  {enrichment.socials?.map(({ platform, url }) => (
+                    <a
+                      key={platform}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="surface-glass flex items-center gap-2.5 rounded-xl p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40"
+                    >
+                      <Share2
+                        className="size-4 shrink-0 text-primary"
+                        aria-hidden
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {platform}
+                        </span>
+                        <span className="block truncate text-sm font-medium text-primary">
+                          {url.replace(/^https?:\/\/(www\.)?/, "")}
+                        </span>
+                      </span>
+                    </a>
+                  ))}
                 </div>
               )}
 

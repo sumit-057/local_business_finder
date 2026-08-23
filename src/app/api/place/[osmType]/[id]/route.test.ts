@@ -19,6 +19,7 @@ const richNodeFixture = {
         email: "hello@lakme.example.com",
         wheelchair: "yes",
         image: "https://upload.wikimedia.org/salon-photo.jpg",
+        "contact:instagram": "lakmesalon",
         "addr:housenumber": "12",
         "addr:street": "Nagras Road",
         "addr:city": "Pune",
@@ -94,6 +95,9 @@ describe("GET /api/place/[osmType]/[id]", () => {
     expect(body.enrichment.openingHours).toBe("Mo-Sa 10:00-20:00");
     expect(body.enrichment.email).toBe("hello@lakme.example.com");
     expect(body.enrichment.wheelchair).toBe("yes");
+    expect(body.enrichment.socials).toEqual([
+      { platform: "instagram", url: "https://instagram.com/lakmesalon" },
+    ]);
   });
 
   it("prettifies multi-value cuisine tags", async () => {
@@ -191,11 +195,28 @@ describe("GET /api/place/[osmType]/[id]", () => {
   });
 
   it("falls back to a nearby Wikipedia photo when no image is tagged", async () => {
+    const namedWay = {
+      version: 0.6,
+      elements: [
+        {
+          type: "way",
+          id: 888001,
+          center: { lat: 18.52043, lon: 73.85672 },
+          tags: { name: "Glow Beauty Studio", shop: "beauty" },
+        },
+      ],
+    };
     vi.stubGlobal(
       "fetch",
       vi
         .fn()
-        .mockResolvedValueOnce(jsonResponse(sparseWayFixture))
+        .mockResolvedValueOnce(jsonResponse(namedWay)) // overpass
+        .mockResolvedValueOnce( // reverse geocode fills the address
+          jsonResponse({
+            display_name:
+              "Glow Beauty Studio, Lane 7, Kalyani Nagar, Pune, Maharashtra, 411006, India",
+          }),
+        )
         .mockResolvedValueOnce(
           jsonResponse({
             query: {
@@ -214,6 +235,7 @@ describe("GET /api/place/[osmType]/[id]", () => {
     );
     const body = await (await get("way", "888001")).json();
     expect(body.photoUrl).toBe("https://upload.wikimedia.org/kalyani.jpg");
+    expect(body.place.address).toContain("Kalyani Nagar");
   });
 
   it("sets platform cache headers on success", async () => {

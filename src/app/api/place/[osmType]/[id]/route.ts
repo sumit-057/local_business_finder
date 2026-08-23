@@ -1,6 +1,7 @@
 import {
   extractEnrichment,
   normalizeOverpassPlace,
+  shortenDisplayName,
   type OverpassElement,
   type PlaceEnrichment,
 } from "@/lib/place";
@@ -8,14 +9,15 @@ import { CACHE_CONTROL, PROVIDER_UA } from "@/server/upstream";
 import { LruCache } from "@/server/lru";
 import { acquireProviderSlot } from "@/server/rate-gate";
 
+const NOMINATIM_URL = "https://nominatim.openstreetmap.org";
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 const WIKIPEDIA_URL = "https://en.wikipedia.org/w/api.php";
 const cache = new LruCache<{ status: number; body: string }>(128);
 
 /**
  * Free, key-less photo lookup: the closest Wikipedia article with a
- * thumbnail within ~300 m of the Place. Volunteer-tagged images always
- * win when present.
+ * thumbnail within ~300 m of the Place — presented to visitors as an
+ * *area* photo, never claimed to be the business itself.
  */
 async function findWikipediaPhoto(
   lat: number,
@@ -159,9 +161,36 @@ export async function GET(
 
   const normalized = normalizeOverpassPlace(element);
   const enrichment = extractEnrichment(element.tags ?? {});
+
+  // Unmapped address? Reverse-geocode the coordinates into a street,
+  // neighbourhood and city so the sheet always shows where it is.
+  if (!normalized.address && Number.isFinite(normalized.lat)) {
+    try {
+      await acquireProviderSlot();
+      const res = await fetch(
+        `${NOMINATIM_URL}/reverse?lat=${normalized.lat}&lon=${normalized.lon}&format=jsonv2&zoom=18`,
+        {
+          headers: { "User-Agent": PROVIDER_UA, Accept: "application/json" },
+          signal: AbortSignal.timeout(5_000),
+        },
+      );
+      if (res.ok) {
+        const reverse = (await res.json()) as { display_name?: string };
+        if (reverse.display_name) {
+          normalized.address =
+            shortenDisplayName(reverse.display_name) || reverse.display_name;
+        }
+      }
+    } catch {
+      // Address enrichment is best-effort.
+    }
+  }
+
+  // Area photo only for named places — an anonymous coordinate could
+  // match anything nearby, which would be misleading.
   const photoUrl =
     enrichment.imageUrl ??
-    (Number.isFinite(normalized.lat) && Number.isFinite(normalized.lon)
+    (normalized.name !== "Unnamed place" && Number.isFinite(normalized.lat)
       ? await findWikipediaPhoto(normalized.lat, normalized.lon)
       : undefined);
 

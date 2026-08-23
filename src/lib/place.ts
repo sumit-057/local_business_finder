@@ -33,8 +33,8 @@ function asOsmType(value: string | undefined): OsmType {
   return value === "way" || value === "relation" ? value : "node";
 }
 
-/** Splits a Nominatim display_name into a short address (drop the tail). */
-function shortAddress(displayName: string): string {
+/** Splits a long display_name into a readable short address. */
+export function shortenDisplayName(displayName: string): string {
   const parts = displayName.split(", ");
   if (parts.length <= 1) return displayName;
   const keep = parts.length > 6 ? parts.length - 4 : parts.length - 1;
@@ -52,7 +52,7 @@ export function normalizeNominatimPlace(hit: NominatimHit): Place {
     // Unnamed places still deserve a usable card title, never nulls.
     name: hit.name?.trim() || hit.type || "Unnamed place",
     category: hit.category && hit.type ? `${hit.category}/${hit.type}` : null,
-    address: shortAddress(displayName) || displayName,
+    address: shortenDisplayName(displayName) || displayName,
     lat: Number(hit.lat),
     lon: Number(hit.lon),
   };
@@ -124,6 +124,8 @@ export interface PlaceEnrichment {
   offersDelivery?: boolean;
   /** Accepted payment methods, e.g. ["cash", "visa"]. */
   payments?: string[];
+  /** Social profiles tagged via contact:* keys. */
+  socials?: Array<{ platform: string; url: string }>;
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -179,5 +181,19 @@ export function extractEnrichment(tags: Record<string, string>): PlaceEnrichment
     .filter(([k, v]) => k.startsWith("payment:") && v === "yes")
     .map(([k]) => PAYMENT_LABELS[k.slice("payment:".length)] ?? pretty(k.slice(8)));
   if (payments.length > 0) enrichment.payments = payments;
+
+  const SOCIAL_PLATFORMS = ["instagram", "facebook", "youtube", "twitter"] as const;
+  const socials: Array<{ platform: string; url: string }> = [];
+  for (const platform of SOCIAL_PLATFORMS) {
+    const handle = tags[`contact:${platform}`]?.trim();
+    if (!handle) continue;
+    socials.push({
+      platform,
+      url: /^https?:\/\//i.test(handle)
+        ? handle
+        : `https://${platform}.com/${handle.replace(/^@/, "")}`,
+    });
+  }
+  if (socials.length > 0) enrichment.socials = socials;
   return enrichment;
 }
