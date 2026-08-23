@@ -15,6 +15,12 @@ export interface Place {
   address: string;
   lat: number;
   lon: number;
+  /**
+   * Tags-derived details carried straight from Overpass-backed
+   * endpoints, so cards can open fully populated without a second
+   * request. The detail endpoint refines these.
+   */
+  enrichment?: PlaceEnrichment;
 }
 
 interface NominatimHit {
@@ -98,6 +104,7 @@ export function normalizeOverpassPlace(element: OverpassElement): Place {
     // Ways and relations expose their centroid under `center`.
     lat: Number(element.lat ?? element.center?.lat),
     lon: Number(element.lon ?? element.center?.lon),
+    enrichment: extractEnrichment(tags),
   };
 }
 

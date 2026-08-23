@@ -136,12 +136,18 @@ export function PlaceDetailSheet({
     entry?.status === "ready" && entry.payload
       ? entry.payload.place
       : (fallbackPlace ?? null);
-  const enrichment =
-    entry?.status === "ready" && entry.payload ? entry.payload.enrichment : null;
 
   const favorites = useFavorites();
   const favorite = place ? favorites.some((p) => p.id === place.id) : false;
   const [brokenImages, setBrokenImages] = useState<Set<string>>(new Set());
+
+  // Enrichment known from the results list renders instantly; the
+  // detail fetch only refines it (photo, reverse-geocoded address).
+  const knownEnrichment = fallbackPlace?.enrichment ?? null;
+  const fetchedEnrichment =
+    entry?.status === "ready" ? entry.payload?.enrichment : undefined;
+  const enrichment = fetchedEnrichment ?? knownEnrichment ?? null;
+
   const volunteerPhoto = enrichment?.imageUrl;
   const wikiPhoto =
     entry?.status === "ready" ? entry.payload?.photoUrl : undefined;
@@ -150,6 +156,22 @@ export function PlaceDetailSheet({
     photoSrc && /^https?:\/\//i.test(photoSrc) && !brokenImages.has(photoSrc)
       ? photoSrc
       : null;
+
+  const hasEnrichmentRows =
+    !!enrichment &&
+    (enrichment.phone ||
+      enrichment.email ||
+      enrichment.website ||
+      enrichment.openingHours ||
+      enrichment.cuisine ||
+      enrichment.wheelchair ||
+      enrichment.brand ||
+      enrichment.internet ||
+      enrichment.hasOutdoorSeating ||
+      enrichment.offersTakeaway ||
+      enrichment.offersDelivery ||
+      (enrichment.payments?.length ?? 0) > 0 ||
+      (enrichment.socials?.length ?? 0) > 0);
 
   const directionsUrl = place
     ? `https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lon}`
@@ -437,14 +459,14 @@ export function PlaceDetailSheet({
                 </p>
               )}
 
-              {status === "loading" && (
+              {status === "loading" && !hasEnrichmentRows && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Skeleton className="size-3 rounded-full" />
                   Loading extra details…
                 </div>
               )}
 
-              {(status === "error" || status === "missing") && (
+              {(status === "error" || status === "missing") && !hasEnrichmentRows && (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-accent/40 p-2.5">
                   <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground">
                     {status === "missing"
@@ -459,23 +481,7 @@ export function PlaceDetailSheet({
                 </div>
               )}
 
-              {!(
-                status === "loading" ||
-                status === "error" ||
-                status === "missing" ||
-                enrichment?.phone ||
-                enrichment?.email ||
-                enrichment?.website ||
-                enrichment?.openingHours ||
-                enrichment?.cuisine ||
-                enrichment?.wheelchair ||
-                enrichment?.brand ||
-                enrichment?.internet ||
-                enrichment?.hasOutdoorSeating ||
-                enrichment?.offersTakeaway ||
-                enrichment?.offersDelivery ||
-                enrichment?.payments
-              ) && (
+              {status === "ready" && !hasEnrichmentRows && (
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   No contact details have been tagged for this place yet — the
                   map data is volunteer-maintained.
