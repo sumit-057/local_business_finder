@@ -415,10 +415,10 @@ export function PlaceDetailSheet({
               )}
 
               {status === "loading" && (
-                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Skeleton className="size-3 rounded-full" />
                   Loading extra details…
-                </p>
+                </div>
               )}
 
               {(status === "error" || status === "missing") && (
